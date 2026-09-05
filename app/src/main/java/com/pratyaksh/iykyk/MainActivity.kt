@@ -1,8 +1,10 @@
 package com.pratyaksh.iykyk
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.media.MediaMetadataRetriever
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -48,6 +50,10 @@ fun HomeScreen(contentPadding: PaddingValues) {
     val context = LocalContext.current
     val contentResolver = context.contentResolver
 
+    var extractedFrames by remember {
+        mutableStateOf<List<Bitmap>>(emptyList())
+    }
+
     var selectedVideoName by remember {
         mutableStateOf<String?>(null)
     }
@@ -58,6 +64,15 @@ fun HomeScreen(contentPadding: PaddingValues) {
         selectedVideoUri = uri
 
         uri?.let {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(context, it)
+
+            val duration = retriever.extractMetadata(
+                MediaMetadataRetriever.METADATA_KEY_DURATION
+            )?.toLong() ?: 0L
+
+            retriever.release()
+
             contentResolver.query(
                 it,
                 arrayOf(OpenableColumns.DISPLAY_NAME),
