@@ -1,6 +1,5 @@
 package com.pratyaksh.iykyk.viewmodel
 
-import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
@@ -8,12 +7,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pratyaksh.iykyk.video.FaceEmbedder
+import com.pratyaksh.iykyk.video.FaceEmbeddingTester
+import com.pratyaksh.iykyk.video.FrameDetection
 import com.pratyaksh.iykyk.video.VideoProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val videoProcessor: VideoProcessor
+    private val videoProcessor: VideoProcessor,
+    private val faceEmbeddingTester: FaceEmbeddingTester,
+    private val faceEmbedder: FaceEmbedder
 ) : ViewModel() {
 
     var selectedVideoUri by mutableStateOf<Uri?>(null)
@@ -22,93 +26,88 @@ class HomeViewModel(
     var selectedVideoName by mutableStateOf<String?>(null)
         private set
 
-    var extractedFrames by mutableStateOf<List<Bitmap>>(emptyList())
+    var frameDetections by mutableStateOf<List<FrameDetection>>(emptyList())
         private set
 
     fun onVideoSelected(uri: Uri?) {
-        Log.d(
-            "HomeViewModel",
-            "CHECKPOINT 1: onVideoSelected() called. URI = $uri"
-        )
-
         selectedVideoUri = uri
 
         if (uri == null) {
             selectedVideoName = null
-            extractedFrames = emptyList()
-
-            Log.d(
-                "HomeViewModel",
-                "CHECKPOINT: URI was null"
-            )
-
+            frameDetections = emptyList()
             return
         }
 
-        selectedVideoName = videoProcessor.getVideoName(uri)
-
-        Log.d(
-            "HomeViewModel",
-            "CHECKPOINT 2: Starting frame extraction"
-        )
+        selectedVideoName =
+            videoProcessor.getVideoName(uri)
 
         viewModelScope.launch(Dispatchers.IO) {
-
             try {
-                val frames = videoProcessor.extractFrames(uri)
-
                 Log.d(
                     "HomeViewModel",
-                    "CHECKPOINT 3: Frame extraction completed. Frames = ${frames.size}"
+                    "Starting sequential 200ms video processing"
                 )
 
-                extractedFrames = frames
+                val startTime =
+                    System.currentTimeMillis()
 
-                if (frames.isEmpty()) {
-                    Log.d(
-                        "HomeViewModel",
-                        "CHECKPOINT: No frames available. Stopping."
+                val results =
+                    videoProcessor.processVideo(
+                        uri = uri,
+                        intervalMs = 200L
                     )
 
-                    return@launch
-                }
+                val elapsedTime =
+                    System.currentTimeMillis() -
+                            startTime
 
-                val firstFrame = frames.first()
-
-                Log.d(
-                    "HomeViewModel",
-                    "CHECKPOINT 4: Starting face detection"
-                )
-
-                val faces = videoProcessor.detectFacesInFrame(firstFrame)
+                frameDetections = results
 
                 Log.d(
                     "HomeViewModel",
-                    "CHECKPOINT 5: Face detection completed. Faces = ${faces.size}"
+                    "Sequential processing completed. " +
+                            "Frames=${results.size}, " +
+                            "Time=${elapsedTime}ms"
                 )
 
-                faces.forEachIndexed { index, face ->
-
+                results.forEach { result ->
                     Log.d(
                         "HomeViewModel",
-                        """
-                        Face ${index + 1}
-                        Bounding box: ${face.boundingBox}
-                        Head rotation X: ${face.headEulerAngleX}
-                        Head rotation Y: ${face.headEulerAngleY}
-                        Head rotation Z: ${face.headEulerAngleZ}
-                        Left eye open: ${face.leftEyeOpenProbability}
-                        Right eye open: ${face.rightEyeOpenProbability}
-                        Smiling: ${face.smilingProbability}
-                        """.trimIndent()
+                        "Timestamp=${result.timestampMs}ms, " +
+                                "faces=${result.faces.size}"
                     )
                 }
-
             } catch (exception: Exception) {
-
                 Log.e(
                     "HomeViewModel",
-                    "PROCESSING ERROR",
+                    "VIDEO PROCESSING ERROR",
+                    exception
+                )
+            }
+        }
+    }
+
+    fun runEmbeddingTest() {
+        val uri = selectedVideoUri
+            ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(
+                    "HomeViewModel",
+                    "Starting face embedding test"
+                )
+
+                faceEmbeddingTester.run(uri)
+
+                Log.d(
+                    "HomeViewModel",
+                    "Face embedding test completed"
+                )
+            } catch (exception: Exception) {
+                Log.e(
+                    "HomeViewModel",
+                    "FACE EMBEDDING TEST ERROR",
                     exception
                 )
             }
@@ -116,6 +115,7 @@ class HomeViewModel(
     }
 
     override fun onCleared() {
+        faceEmbedder.close()
         videoProcessor.close()
         super.onCleared()
     }

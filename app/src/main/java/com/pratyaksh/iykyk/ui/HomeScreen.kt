@@ -22,39 +22,59 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
 
-    val factory = HomeViewModelFactory(
-        contentResolver = context.contentResolver
-    )
+    val factory =
+        HomeViewModelFactory(
+            contentResolver = context.contentResolver,
+            context = context
+        )
 
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = factory
-    )
+    val homeViewModel: HomeViewModel =
+        viewModel(
+            factory = factory
+        )
 
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        homeViewModel.onVideoSelected(uri)
-    }
+    val videoPickerLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            homeViewModel.onVideoSelected(uri)
+        }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
     ) {
-        Text(text = "Home Screen")
+        Text(
+            text = "Home Screen"
+        )
 
         Button(
             onClick = {
                 videoPickerLauncher.launch("video/*")
             }
         ) {
-            Text(text = "Select Video")
+            Text(
+                text = "Select Video"
+            )
         }
 
-        if (homeViewModel.selectedVideoUri != null) {
+        if (
+            homeViewModel.selectedVideoUri != null
+        ) {
             Text(
                 text = "Video Name: ${homeViewModel.selectedVideoName}"
             )
+
+            Button(
+                onClick = {
+                    homeViewModel.runEmbeddingTest()
+                }
+            ) {
+                Text(
+                    text = "Test Face Embedding"
+                )
+            }
         }
     }
 }
