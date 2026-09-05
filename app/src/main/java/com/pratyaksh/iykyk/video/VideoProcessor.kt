@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.google.mlkit.vision.face.Face
 
 class VideoProcessor(
-    private val contentResolver: ContentResolver
+    private val contentResolver: ContentResolver,
+    private val faceDetector: FaceDetector
 ) {
 
     fun getVideoName(uri: Uri): String? {
@@ -35,6 +37,7 @@ class VideoProcessor(
     ): List<Bitmap> {
 
         val retriever = MediaMetadataRetriever()
+
         contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
             retriever.setDataSource(pfd.fileDescriptor)
         }
@@ -61,5 +64,17 @@ class VideoProcessor(
         retriever.release()
 
         return frames
+    }
+
+    suspend fun detectFacesInFrames(
+        frames: List<Bitmap>
+    ): List<List<Face>> {
+        return frames.map { frame ->
+            faceDetector.detectFaces(frame)
+        }
+    }
+
+    fun close() {
+        faceDetector.close()
     }
 }

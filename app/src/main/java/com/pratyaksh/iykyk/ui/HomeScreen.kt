@@ -1,7 +1,6 @@
 package com.pratyaksh.iykyk.ui
 
 import android.net.Uri
-import com.pratyaksh.iykyk.viewmodel.HomeViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -12,13 +11,25 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pratyaksh.iykyk.viewmodel.HomeViewModel
+import com.pratyaksh.iykyk.viewmodel.HomeViewModelFactory
 
 @Composable
 fun HomeScreen(
-    contentPadding: PaddingValues,
-    homeViewModel: HomeViewModel = viewModel()
+    contentPadding: PaddingValues
 ) {
+    val context = LocalContext.current
+
+    val factory = HomeViewModelFactory(
+        contentResolver = context.contentResolver
+    )
+
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = factory
+    )
+
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
