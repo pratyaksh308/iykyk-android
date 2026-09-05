@@ -66,12 +66,10 @@ class VideoProcessor(
         return frames
     }
 
-    suspend fun detectFacesInFrames(
-        frames: List<Bitmap>
-    ): List<List<Face>> {
-        return frames.map { frame ->
-            faceDetector.detectFaces(frame)
-        }
+    suspend fun detectFacesInFrame(
+        frame: Bitmap
+    ): List<Face> {
+        return faceDetector.detectFaces(frame)
     }
 
     fun close() {
