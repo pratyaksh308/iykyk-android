@@ -14,15 +14,15 @@ class IdentityGrouper(
     companion object {
         private const val TAG = "IdentityGrouper"
         private const val MAX_OBSERVATIONS_PER_SEGMENT = 5
-        private const val STRONG_FACE_SCORE = 0.78f
-        private const val MIN_FACE_SCORE = 0.25f
-        private const val STRONG_FACE_WEIGHT = 0.80f
-        private const val STRONG_CLOTHING_WEIGHT = 0.20f
-        private const val NORMAL_FACE_WEIGHT = 0.60f
-        private const val NORMAL_CLOTHING_WEIGHT = 0.40f
-        private const val WEAK_FACE_WEIGHT = 0.45f
-        private const val WEAK_CLOTHING_WEIGHT = 0.55f
-        private const val SEED_FACE_THRESHOLD = 0.78f
+        private const val STRONG_FACE_SCORE = 0.58f
+        private const val MIN_FACE_SCORE = 0.35f
+        private const val STRONG_FACE_WEIGHT = 0.85f
+        private const val STRONG_CLOTHING_WEIGHT = 0.15f
+        private const val NORMAL_FACE_WEIGHT = 0.70f
+        private const val NORMAL_CLOTHING_WEIGHT = 0.30f
+        private const val WEAK_FACE_WEIGHT = 0.70f
+        private const val WEAK_CLOTHING_WEIGHT = 0.30f
+        private const val SEED_FACE_THRESHOLD = 0.60f
         private const val GROUP_EXACT_SEARCH_LIMIT = 8
     }
 
@@ -67,7 +67,8 @@ class IdentityGrouper(
 
     suspend fun group(
         uri: Uri,
-        appearanceSegments: List<AppearanceSegment>
+        appearanceSegments: List<AppearanceSegment>,
+        onProgress: (Float) -> Unit = {}
     ): List<PersonIdentity> {
 
         Log.d(
@@ -94,6 +95,8 @@ class IdentityGrouper(
             return emptyList()
         }
 
+        onProgress(0.3f)
+
         Log.d(
             TAG,
             "Profiles ready=${profiles.size}"
@@ -101,6 +104,8 @@ class IdentityGrouper(
 
         val matches =
             buildAllMatches(profiles)
+
+        onProgress(0.6f)
 
         logBestMatches(
             profiles,
@@ -131,6 +136,8 @@ class IdentityGrouper(
                 seeds = seeds,
                 matches = matches
             )
+
+        onProgress(0.85f)
 
         Log.d(
             TAG,
@@ -188,6 +195,7 @@ class IdentityGrouper(
             "=================================================================="
         )
 
+        onProgress(1f)
         return identities
     }
 
@@ -573,24 +581,25 @@ class IdentityGrouper(
                 continue
             }
 
-            val strongestFace =
-                seeds.maxOfOrNull { seed ->
-
-                    compareSegments(
-                        profile,
-                        seed.profile
-                    )?.strongestFace ?: 0f
-                } ?: 0f
+            val strongestNonOverlappingFace =
+                seeds
+                    .filter { seed ->
+                        !segmentsOverlap(profile.segment, seed.profile.segment)
+                    }
+                    .maxOfOrNull { seed ->
+                        compareSegments(
+                            profile,
+                            seed.profile
+                        )?.strongestFace ?: 0f
+                    } ?: 0f
 
             if (
-                strongestFace >=
+                strongestNonOverlappingFace <
                 SEED_FACE_THRESHOLD
             ) {
-                break
+                seeds +=
+                    IdentitySeed(profile)
             }
-
-            seeds +=
-                IdentitySeed(profile)
         }
 
         return seeds
@@ -970,14 +979,9 @@ class IdentityGrouper(
         val seed =
             seeds[seedIndex]
 
-        val seedMatch =
-            compareSegments(
-                profile,
-                seed.profile
-            )
-
-        val seedScore =
-            seedMatch?.score ?: 0f
+        if (segmentsOverlap(profile.segment, seed.profile.segment)) {
+            return 0f
+        }
 
         val historicalProfiles =
             assignments
@@ -991,6 +995,26 @@ class IdentityGrouper(
                         seeds
                     )
                 }
+
+        if (historicalProfiles.any { segmentsOverlap(profile.segment, it.segment) }) {
+            return 0f
+        }
+
+        val seedMatch =
+            compareSegments(
+                profile,
+                seed.profile
+            )
+
+        val seedScore =
+            seedMatch?.score ?: 0f
+
+        val directFace =
+            seedMatch?.faceScore ?: 0f
+
+        if (directFace < 0.35f) {
+            return 0f
+        }
 
         val historicalScores =
             historicalProfiles
@@ -1026,9 +1050,6 @@ class IdentityGrouper(
                 seeds,
                 assignments
             )
-
-        val directFace =
-            seedMatch?.faceScore ?: 0f
 
         val directClothing =
             seedMatch?.clothingScore ?: 0f
@@ -1234,27 +1255,14 @@ class IdentityGrouper(
         val combinedScore =
             when {
 
-                strongestFace >=
-                        STRONG_FACE_SCORE ->
+                strongestFace < 0.35f ->
+                    0f
 
-                    STRONG_FACE_WEIGHT *
-                            faceScore +
-                            STRONG_CLOTHING_WEIGHT *
-                            clothingScore
-
-                strongestFace < 0.45f ->
-
-                    WEAK_FACE_WEIGHT *
-                            faceScore +
-                            WEAK_CLOTHING_WEIGHT *
-                            clothingScore
+                strongestFace >= 0.65f ->
+                    0.85f * faceScore + 0.15f * clothingScore
 
                 else ->
-
-                    NORMAL_FACE_WEIGHT *
-                            faceScore +
-                            NORMAL_CLOTHING_WEIGHT *
-                            clothingScore
+                    0.70f * faceScore + 0.30f * clothingScore
             }
 
         return SegmentMatch(
@@ -1351,7 +1359,7 @@ class IdentityGrouper(
         assignments: List<Assignment>
     ): List<PersonIdentity> {
 
-        return seeds.mapIndexed { seedIndex, seed ->
+        val initialIdentities = seeds.mapIndexed { seedIndex, seed ->
 
             val assignedProfiles =
                 assignments
@@ -1391,7 +1399,61 @@ class IdentityGrouper(
                         }
                         .toMutableList()
             )
+        }.filter { it.appearances.isNotEmpty() }
+
+        return mergeSimilarIdentities(initialIdentities)
+    }
+
+    private fun mergeSimilarIdentities(
+        identities: List<PersonIdentity>
+    ): List<PersonIdentity> {
+        if (identities.size <= 1) return identities
+
+        val merged = mutableListOf<PersonIdentity>()
+        val skip = mutableSetOf<Int>()
+
+        for (i in identities.indices) {
+            if (identities[i].id in skip) continue
+            var current = identities[i]
+
+            for (j in i + 1 until identities.size) {
+                if (identities[j].id in skip) continue
+                val other = identities[j]
+
+                val sim = cosineSimilarity(current.prototypeEmbedding, other.prototypeEmbedding)
+                if (sim >= 0.60f && !haveOverlappingAppearances(current, other)) {
+                    current.appearances.addAll(other.appearances)
+                    skip.add(other.id)
+                }
+            }
+
+            merged.add(current)
         }
+
+        return merged.mapIndexed { index, person ->
+            val sortedAppearances = person.appearances
+                .distinctBy { it.id }
+                .sortedBy { it.startTimestampMs }
+                .toMutableList()
+
+            PersonIdentity(
+                id = index + 1,
+                name = "Person ${index + 1}",
+                prototypeEmbedding = person.prototypeEmbedding,
+                appearances = sortedAppearances
+            )
+        }
+    }
+
+    private fun haveOverlappingAppearances(a: PersonIdentity, b: PersonIdentity): Boolean {
+        for (segA in a.appearances) {
+            for (segB in b.appearances) {
+                if (segmentsOverlap(segA, segB)) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun buildPrototype(

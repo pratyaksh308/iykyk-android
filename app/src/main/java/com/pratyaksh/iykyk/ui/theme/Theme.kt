@@ -1,58 +1,129 @@
 package com.pratyaksh.iykyk.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+
+data class IykykColors(
+    val appBackground: Color,
+    val surface: Color,
+    val surfaceContainerLow: Color,
+    val surfaceContainer: Color,
+    val surfaceContainerHigh: Color,
+    val ink: Color,
+    val mutedInk: Color,
+    val primaryContainer: Color,
+    val primaryFixed: Color,
+    val secondaryFixed: Color,
+    val tertiaryFixed: Color,
+    val secondaryContainer: Color,
+    val amberSparkle: Color,
+    val coral: Color,
+    val purple: Color,
+    val yellow: Color,
+    val teal: Color
+)
+
+val LightIykykColors = IykykColors(
+    appBackground = AppBackgroundLight,
+    surface = SurfaceLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    ink = InkLight,
+    mutedInk = MutedInkLight,
+    primaryContainer = PrimaryContainerLight,
+    primaryFixed = PrimaryFixedLight,
+    secondaryFixed = SecondaryFixedLight,
+    tertiaryFixed = TertiaryFixedLight,
+    secondaryContainer = SecondaryContainerLight,
+    amberSparkle = AmberSparkleLight,
+    coral = CoralLight,
+    purple = PurpleLight,
+    yellow = YellowLight,
+    teal = TealLight
+)
+
+val DarkIykykColors = IykykColors(
+    appBackground = AppBackgroundDark,
+    surface = SurfaceDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    ink = InkDark,
+    mutedInk = MutedInkDark,
+    primaryContainer = PrimaryContainerDark,
+    primaryFixed = PrimaryFixedDark,
+    secondaryFixed = SecondaryFixedDark,
+    tertiaryFixed = TertiaryFixedDark,
+    secondaryContainer = SecondaryContainerDark,
+    amberSparkle = AmberSparkleDark,
+    coral = CoralDark,
+    purple = PurpleDark,
+    yellow = YellowDark,
+    teal = TealDark
+)
+
+val LocalIykykColors = staticCompositionLocalOf { LightIykykColors }
+
+object IykykTheme {
+    val colors: IykykColors
+        @Composable
+        get() = LocalIykykColors.current
+}
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = CoralDark,
+    secondary = PurpleDark,
+    tertiary = YellowDark,
+    background = AppBackgroundDark,
+    surface = SurfaceDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = CoralLight,
+    secondary = PurpleLight,
+    tertiary = YellowLight,
+    background = AppBackgroundLight,
+    surface = SurfaceLight
 )
 
 @Composable
 fun IykykTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val iykykColors = if (darkTheme) DarkIykykColors else LightIykykColors
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = iykykColors.appBackground.toArgb()
+            window.navigationBarColor = iykykColors.appBackground.toArgb()
+
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
+        }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalIykykColors provides iykykColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

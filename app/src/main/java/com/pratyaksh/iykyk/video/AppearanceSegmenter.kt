@@ -14,13 +14,13 @@ class AppearanceSegmenter(
 ) {
     companion object {
         private const val TAG = "AppearanceSegmenter"
-        private const val MAX_TRACK_GAP_MS = 400L
+        private const val MAX_TRACK_GAP_MS = 1200L
         private const val MAX_CENTER_DISTANCE_PX = 250f
         private const val MIN_CENTER_DISTANCE_PX = 80f
         private const val MAX_SIZE_CHANGE_RATIO = 2.5f
         private const val MIN_IOU_FOR_MATCH = 0.05f
         private const val STRONG_IOU = 0.20f
-        private const val EMBEDDING_SIM_THRESHOLD = 0.70f
+        private const val EMBEDDING_SIM_THRESHOLD = 0.40f
         private const val MIN_FACE_AREA = 2000
         private const val VELOCITY_SMOOTHING = 0.65f
     }
@@ -46,7 +46,8 @@ class AppearanceSegmenter(
 
     fun segment(
         uri: Uri,
-        frameDetections: List<FrameDetection>
+        frameDetections: List<FrameDetection>,
+        onProgress: (Float) -> Unit = {}
     ): List<AppearanceSegment> {
         if (frameDetections.isEmpty()) {
             return emptyList()
@@ -58,7 +59,9 @@ class AppearanceSegmenter(
         var totalDetectedFaces = 0
         var maxSimultaneousTracks = 0
 
-        for (frame in frameDetections) {
+        for (i in frameDetections.indices) {
+            val frame = frameDetections[i]
+            onProgress(i.toFloat() / max(1, frameDetections.size).toFloat())
             val timestampMs = frame.timestampMs
             val faces = frame.faces
             totalDetectedFaces += faces.size
@@ -294,7 +297,8 @@ class AppearanceSegmenter(
             .filter { track ->
                 track.observations.size >= 2 ||
                         (track.observations.size == 1 &&
-                                (track.referenceEmbedding != null || track.observations.first().face.area >= MIN_FACE_AREA))
+                                track.referenceEmbedding != null &&
+                                track.observations.first().face.area >= 5000)
             }
             .sortedBy {
                 it.observations.first().timestampMs
@@ -347,6 +351,7 @@ class AppearanceSegmenter(
             "======================================================================="
         )
 
+        onProgress(1f)
         return validSegments
     }
 
