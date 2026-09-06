@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pratyaksh.iykyk.video.AppearanceSegment
+import com.pratyaksh.iykyk.video.AppearanceSegmenter
 import com.pratyaksh.iykyk.video.FaceEmbedder
 import com.pratyaksh.iykyk.video.FaceEmbeddingTester
 import com.pratyaksh.iykyk.video.FrameDetection
@@ -17,7 +19,8 @@ import kotlinx.coroutines.launch
 class HomeViewModel(
     private val videoProcessor: VideoProcessor,
     private val faceEmbeddingTester: FaceEmbeddingTester,
-    private val faceEmbedder: FaceEmbedder
+    private val faceEmbedder: FaceEmbedder,
+    private val appearanceSegmenter: AppearanceSegmenter
 ) : ViewModel() {
 
     var selectedVideoUri by mutableStateOf<Uri?>(null)
@@ -29,12 +32,16 @@ class HomeViewModel(
     var frameDetections by mutableStateOf<List<FrameDetection>>(emptyList())
         private set
 
+    var appearanceSegments by mutableStateOf<List<AppearanceSegment>>(emptyList())
+        private set
+
     fun onVideoSelected(uri: Uri?) {
         selectedVideoUri = uri
 
         if (uri == null) {
             selectedVideoName = null
             frameDetections = emptyList()
+            appearanceSegments = emptyList()
             return
         }
 
@@ -108,6 +115,45 @@ class HomeViewModel(
                 Log.e(
                     "HomeViewModel",
                     "FACE EMBEDDING TEST ERROR",
+                    exception
+                )
+            }
+        }
+    }
+
+    fun runSegmentationTest() {
+        val detections = frameDetections
+        val uri = selectedVideoUri
+
+        if (detections.isEmpty() || uri == null) {
+            Log.w(
+                "HomeViewModel",
+                "No frame detections or video URI available for segmentation test"
+            )
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                Log.d(
+                    "HomeViewModel",
+                    "Starting temporal appearance segmentation"
+                )
+
+                val results = appearanceSegmenter.segment(
+                    uri = uri,
+                    frameDetections = detections
+                )
+                appearanceSegments = results
+
+                Log.d(
+                    "HomeViewModel",
+                    "Temporal appearance segmentation completed. Segments=${results.size}"
+                )
+            } catch (exception: Exception) {
+                Log.e(
+                    "HomeViewModel",
+                    "SEGMENTATION TEST ERROR",
                     exception
                 )
             }

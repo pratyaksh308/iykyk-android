@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.pratyaksh.iykyk.video.AppearanceSegmenter
 import com.pratyaksh.iykyk.video.FaceDetector
 import com.pratyaksh.iykyk.video.FaceEmbedder
 import com.pratyaksh.iykyk.video.FaceEmbeddingTester
@@ -41,10 +42,17 @@ class HomeViewModelFactory(
                     faceEmbedder = faceEmbedder
                 )
 
+            val appearanceSegmenter =
+                AppearanceSegmenter(
+                    videoProcessor = videoProcessor,
+                    faceEmbedder = faceEmbedder
+                )
+
             return HomeViewModel(
                 videoProcessor = videoProcessor,
                 faceEmbeddingTester = faceEmbeddingTester,
-                faceEmbedder = faceEmbedder
+                faceEmbedder = faceEmbedder,
+                appearanceSegmenter = appearanceSegmenter
             ) as T
         }
 

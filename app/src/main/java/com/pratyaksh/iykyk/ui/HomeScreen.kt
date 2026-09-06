@@ -75,6 +75,16 @@ fun HomeScreen(
                     text = "Test Face Embedding"
                 )
             }
+
+            Button(
+                onClick = {
+                    homeViewModel.runSegmentationTest()
+                }
+            ) {
+                Text(
+                    text = "Test Appearance Segmentation"
+                )
+            }
         }
     }
 }
