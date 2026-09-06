@@ -199,44 +199,37 @@ class HomeViewModel(
                             "${frameWidth}x${frameHeight}"
                 )
 
-                val selectedFrames =
+                val selectedResults =
                     results.mapNotNull { segment ->
                         representativeFrameSelector.select(
+                            uri = uri,
                             segment = segment,
                             frameWidth = frameWidth,
-                            frameHeight = frameHeight
+                            frameHeight = frameHeight,
+                            frameLoader = representativeFrameLoader
                         )
                     }
 
+                val selectedFrames = selectedResults.map { it.first }
+                val selectedBitmaps = selectedResults.mapNotNull { it.second }
+
                 representativeFrames = selectedFrames
+                representativeBitmaps = selectedBitmaps
 
                 Log.d(
                     "HomeViewModel",
                     "Representative frame selection completed. " +
-                            "Frames=${selectedFrames.size}"
+                            "Frames=${selectedFrames.size}, Bitmaps=${selectedBitmaps.size}"
                 )
 
                 selectedFrames.forEach { representative ->
                     Log.d(
                         "HomeViewModel",
                         "Representative timestamp=${representative.timestampMs}ms, " +
-                                "score=${"%.3f".format(representative.score)}"
+                                "score=${"%.3f".format(representative.score)}, " +
+                                "rawSharpness=${"%.1f".format(representative.rawSharpness)}"
                     )
                 }
-
-                val bitmaps =
-                    representativeFrameLoader.load(
-                        uri = uri,
-                        representativeFrames = selectedFrames
-                    )
-
-                representativeBitmaps = bitmaps
-
-                Log.d(
-                    "HomeViewModel",
-                    "Representative frame loading completed. " +
-                            "Bitmaps=${bitmaps.size}"
-                )
             } catch (exception: Exception) {
                 Log.e(
                     "HomeViewModel",
