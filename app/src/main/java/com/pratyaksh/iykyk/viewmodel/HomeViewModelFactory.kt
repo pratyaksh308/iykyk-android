@@ -24,22 +24,18 @@ class HomeViewModelFactory(
     override fun <T : ViewModel> create(
         modelClass: Class<T>
     ): T {
-
         if (
             modelClass.isAssignableFrom(
                 HomeViewModel::class.java
             )
         ) {
-
             val faceDetector =
                 FaceDetector()
 
             val videoProcessor =
                 VideoProcessor(
-                    contentResolver =
-                        contentResolver,
-                    faceDetector =
-                        faceDetector
+                    contentResolver = contentResolver,
+                    faceDetector = faceDetector
                 )
 
             val faceEmbedder =
@@ -47,18 +43,14 @@ class HomeViewModelFactory(
 
             val faceEmbeddingTester =
                 FaceEmbeddingTester(
-                    videoProcessor =
-                        videoProcessor,
-                    faceEmbedder =
-                        faceEmbedder
+                    videoProcessor = videoProcessor,
+                    faceEmbedder = faceEmbedder
                 )
 
             val appearanceSegmenter =
                 AppearanceSegmenter(
-                    videoProcessor =
-                        videoProcessor,
-                    faceEmbedder =
-                        faceEmbedder
+                    videoProcessor = videoProcessor,
+                    faceEmbedder = faceEmbedder
                 )
 
             val identityProfileCache =
@@ -68,12 +60,9 @@ class HomeViewModelFactory(
 
             val identityGrouper =
                 IdentityGrouper(
-                    videoProcessor =
-                        videoProcessor,
-                    faceEmbedder =
-                        faceEmbedder,
-                    profileCache =
-                        identityProfileCache
+                    videoProcessor = videoProcessor,
+                    faceEmbedder = faceEmbedder,
+                    profileCache = identityProfileCache
                 )
 
             val representativeFrameSelector =
@@ -81,30 +70,22 @@ class HomeViewModelFactory(
 
             val representativeFrameLoader =
                 RepresentativeFrameLoader(
-                    videoProcessor =
-                        videoProcessor
+                    videoProcessor = videoProcessor
                 )
 
             val collageGenerator =
                 CollageGenerator()
 
             return HomeViewModel(
-                videoProcessor =
-                    videoProcessor,
-                faceEmbeddingTester =
-                    faceEmbeddingTester,
-                faceEmbedder =
-                    faceEmbedder,
-                appearanceSegmenter =
-                    appearanceSegmenter,
-                identityGrouper =
-                    identityGrouper,
-                representativeFrameSelector =
-                    representativeFrameSelector,
-                representativeFrameLoader =
-                    representativeFrameLoader,
-                collageGenerator =
-                    collageGenerator
+                videoProcessor = videoProcessor,
+                faceEmbeddingTester = faceEmbeddingTester,
+                faceEmbedder = faceEmbedder,
+                appearanceSegmenter = appearanceSegmenter,
+                identityGrouper = identityGrouper,
+                representativeFrameSelector = representativeFrameSelector,
+                representativeFrameLoader = representativeFrameLoader,
+                collageGenerator = collageGenerator,
+                context = context.applicationContext
             ) as T
         }
 

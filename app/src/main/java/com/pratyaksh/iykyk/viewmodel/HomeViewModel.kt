@@ -1,7 +1,12 @@
 package com.pratyaksh.iykyk.viewmodel
 
+import android.content.ContentValues
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +36,8 @@ class HomeViewModel(
     private val identityGrouper: IdentityGrouper,
     private val representativeFrameSelector: RepresentativeFrameSelector,
     private val representativeFrameLoader: RepresentativeFrameLoader,
-    private val collageGenerator: CollageGenerator
+    private val collageGenerator: CollageGenerator,
+    private val context: Context
 ) : ViewModel() {
 
     var selectedVideoUri by mutableStateOf<Uri?>(null)
@@ -61,6 +67,9 @@ class HomeViewModel(
     var collageStatus by mutableStateOf<String?>(null)
         private set
 
+    var savedCollageUri by mutableStateOf<Uri?>(null)
+        private set
+
     fun onVideoSelected(uri: Uri?) {
         selectedVideoUri = uri
 
@@ -72,6 +81,7 @@ class HomeViewModel(
 
         collageBitmap = null
         collageStatus = null
+        savedCollageUri = null
 
         if (uri == null) {
             selectedVideoName = null
@@ -329,6 +339,8 @@ class HomeViewModel(
                     collageStatus =
                         "Collage generated successfully"
 
+                    savedCollageUri = null
+
                     Log.d(
                         "HomeViewModel",
                         "Collage generation completed successfully. " +
@@ -359,6 +371,133 @@ class HomeViewModel(
                     }
                 }
             }
+        }
+    }
+
+    fun saveCollage() {
+        val bitmap =
+            collageBitmap
+                ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val uri =
+                    saveBitmapToGallery(bitmap)
+
+                savedCollageUri =
+                    uri
+
+                collageStatus =
+                    "Collage saved to gallery"
+
+                Log.d(
+                    "HomeViewModel",
+                    "Collage saved successfully: $uri"
+                )
+            } catch (exception: Exception) {
+                collageStatus =
+                    "Failed to save collage: ${exception.message}"
+
+                Log.e(
+                    "HomeViewModel",
+                    "COLLAGE SAVE ERROR",
+                    exception
+                )
+            }
+        }
+    }
+
+    fun getCollageShareUri(): Uri? {
+        return savedCollageUri
+    }
+
+    private fun saveBitmapToGallery(
+        bitmap: Bitmap
+    ): Uri {
+        val resolver =
+            context.contentResolver
+
+        val fileName =
+            "iykyk_collage_${System.currentTimeMillis()}.png"
+
+        val values =
+            ContentValues().apply {
+                put(
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    fileName
+                )
+                put(
+                    MediaStore.Images.Media.MIME_TYPE,
+                    "image/png"
+                )
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(
+                        MediaStore.Images.Media.RELATIVE_PATH,
+                        Environment.DIRECTORY_PICTURES +
+                                "/iykyk"
+                    )
+                    put(
+                        MediaStore.Images.Media.IS_PENDING,
+                        1
+                    )
+                }
+            }
+
+        val uri =
+            resolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                values
+            )
+                ?: throw IllegalStateException(
+                    "Unable to create gallery item"
+                )
+
+        try {
+            resolver.openOutputStream(uri).use { outputStream ->
+                if (outputStream == null) {
+                    throw IllegalStateException(
+                        "Unable to open gallery output"
+                    )
+                }
+
+                if (!bitmap.compress(
+                        Bitmap.CompressFormat.PNG,
+                        100,
+                        outputStream
+                    )
+                ) {
+                    throw IllegalStateException(
+                        "Unable to encode collage"
+                    )
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val completedValues =
+                    ContentValues().apply {
+                        put(
+                            MediaStore.Images.Media.IS_PENDING,
+                            0
+                        )
+                    }
+
+                resolver.update(
+                    uri,
+                    completedValues,
+                    null,
+                    null
+                )
+            }
+
+            return uri
+        } catch (exception: Exception) {
+            resolver.delete(
+                uri,
+                null,
+                null
+            )
+            throw exception
         }
     }
 

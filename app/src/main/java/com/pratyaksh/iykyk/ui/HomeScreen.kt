@@ -1,5 +1,6 @@
 package com.pratyaksh.iykyk.ui
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -145,6 +146,62 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp),
                     contentScale = ContentScale.FillWidth
                 )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement =
+                        Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            homeViewModel.saveCollage()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Save Collage"
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val uri =
+                                homeViewModel.getCollageShareUri()
+
+                            if (uri != null) {
+                                val shareIntent =
+                                    Intent(
+                                        Intent.ACTION_SEND
+                                    ).apply {
+                                        type = "image/png"
+                                        putExtra(
+                                            Intent.EXTRA_STREAM,
+                                            uri
+                                        )
+                                        addFlags(
+                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        )
+                                    }
+
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        shareIntent,
+                                        "Share collage"
+                                    )
+                                )
+                            } else {
+                                homeViewModel.saveCollage()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Share Collage"
+                        )
+                    }
+                }
             }
         }
 
