@@ -2,14 +2,23 @@ package com.pratyaksh.iykyk.video
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Rect
 import android.util.Log
+import com.google.android.gms.tasks.Tasks
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.face.FaceLandmark
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import kotlin.math.atan2
+import kotlin.math.max
 import kotlin.math.sqrt
 
 class FaceEmbedder(
@@ -23,9 +32,17 @@ class FaceEmbedder(
         private const val BATCH_SIZE = 2
         private const val PIXEL_MEAN = 127.5f
         private const val PIXEL_STD = 128f
+        private const val FACE_PADDING = 0.35f
     }
 
     private val interpreter: Interpreter
+
+    private val landmarkDetector = FaceDetection.getClient(
+        FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+            .build()
+    )
 
     init {
         interpreter = Interpreter(
@@ -48,11 +65,19 @@ class FaceEmbedder(
             boundingBox = boundingBox
         )
 
-        return try {
-            embedFace(faceBitmap)
+        val alignedBitmap = try {
+            alignFace(faceBitmap)
         } finally {
-            if (faceBitmap !== bitmap && !faceBitmap.isRecycled) {
+            if (!faceBitmap.isRecycled) {
                 faceBitmap.recycle()
+            }
+        }
+
+        return try {
+            embedFace(alignedBitmap)
+        } finally {
+            if (!alignedBitmap.isRecycled) {
+                alignedBitmap.recycle()
             }
         }
     }
@@ -73,18 +98,34 @@ class FaceEmbedder(
             boundingBox = secondBoundingBox
         )
 
-        return try {
-            embedPair(
-                firstBitmap = firstFaceBitmap,
-                secondBitmap = secondFaceBitmap
-            )
+        val firstAlignedBitmap = try {
+            alignFace(firstFaceBitmap)
         } finally {
             if (!firstFaceBitmap.isRecycled) {
                 firstFaceBitmap.recycle()
             }
+        }
 
+        val secondAlignedBitmap = try {
+            alignFace(secondFaceBitmap)
+        } finally {
             if (!secondFaceBitmap.isRecycled) {
                 secondFaceBitmap.recycle()
+            }
+        }
+
+        return try {
+            embedPair(
+                firstBitmap = firstAlignedBitmap,
+                secondBitmap = secondAlignedBitmap
+            )
+        } finally {
+            if (!firstAlignedBitmap.isRecycled) {
+                firstAlignedBitmap.recycle()
+            }
+
+            if (!secondAlignedBitmap.isRecycled) {
+                secondAlignedBitmap.recycle()
             }
         }
     }
@@ -156,30 +197,6 @@ class FaceEmbedder(
             Log.d(
                 TAG,
                 "Pair inference time=${inferenceTimeMs}ms"
-            )
-
-            Log.d(
-                TAG,
-                "First embedding size=${firstEmbedding.size}"
-            )
-
-            Log.d(
-                TAG,
-                "Second embedding size=${secondEmbedding.size}"
-            )
-
-            Log.d(
-                TAG,
-                "First embedding magnitude=${"%.6f".format(
-                    embeddingMagnitude(firstEmbedding)
-                )}"
-            )
-
-            Log.d(
-                TAG,
-                "Second embedding magnitude=${"%.6f".format(
-                    embeddingMagnitude(secondEmbedding)
-                )}"
             )
 
             return Pair(
@@ -273,6 +290,117 @@ class FaceEmbedder(
         }
     }
 
+    private fun alignFace(
+        faceBitmap: Bitmap
+    ): Bitmap {
+        if (faceBitmap.width < 20 || faceBitmap.height < 20) {
+            return Bitmap.createBitmap(
+                faceBitmap,
+                0,
+                0,
+                faceBitmap.width,
+                faceBitmap.height
+            )
+        }
+
+        val image = InputImage.fromBitmap(
+            faceBitmap,
+            0
+        )
+
+        val faces = try {
+            Tasks.await(
+                landmarkDetector.process(image)
+            )
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val face = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+            ?: return Bitmap.createBitmap(
+                faceBitmap,
+                0,
+                0,
+                faceBitmap.width,
+                faceBitmap.height
+            )
+
+        val leftEye = face.getLandmark(
+            FaceLandmark.LEFT_EYE
+        )?.position
+
+        val rightEye = face.getLandmark(
+            FaceLandmark.RIGHT_EYE
+        )?.position
+
+        if (leftEye == null || rightEye == null) {
+            return Bitmap.createBitmap(
+                faceBitmap,
+                0,
+                0,
+                faceBitmap.width,
+                faceBitmap.height
+            )
+        }
+
+        val dx = rightEye.x - leftEye.x
+        val dy = rightEye.y - leftEye.y
+
+        if (dx == 0f && dy == 0f) {
+            return Bitmap.createBitmap(
+                faceBitmap,
+                0,
+                0,
+                faceBitmap.width,
+                faceBitmap.height
+            )
+        }
+
+        val angle = Math.toDegrees(
+            atan2(
+                dy.toDouble(),
+                dx.toDouble()
+            )
+        ).toFloat()
+
+        if (kotlin.math.abs(angle) < 1f) {
+            return Bitmap.createBitmap(
+                faceBitmap,
+                0,
+                0,
+                faceBitmap.width,
+                faceBitmap.height
+            )
+        }
+
+        val matrix = Matrix().apply {
+            postRotate(
+                -angle,
+                faceBitmap.width / 2f,
+                faceBitmap.height / 2f
+            )
+        }
+
+        val aligned = Bitmap.createBitmap(
+            faceBitmap.width,
+            faceBitmap.height,
+            Bitmap.Config.ARGB_8888
+        )
+
+        Canvas(aligned).drawBitmap(
+            faceBitmap,
+            matrix,
+            null
+        )
+
+        Log.d(
+            TAG,
+            "Face alignment angle=${"%.2f".format(angle)}"
+        )
+
+        return aligned
+    }
+
     private fun addBitmapToInput(
         bitmap: Bitmap,
         input: ByteBuffer
@@ -334,12 +462,43 @@ class FaceEmbedder(
             bitmap.height
         )
 
+        val width = right - left
+        val height = bottom - top
+        val squareSize = max(width, height)
+        val paddedSize = (squareSize * (1f + FACE_PADDING)).toInt()
+
+        val centerX = (left + right) / 2
+        val centerY = (top + bottom) / 2
+
+        var cropLeft = centerX - paddedSize / 2
+        var cropTop = centerY - paddedSize / 2
+
+        cropLeft = cropLeft.coerceIn(
+            0,
+            max(0, bitmap.width - paddedSize)
+        )
+
+        cropTop = cropTop.coerceIn(
+            0,
+            max(0, bitmap.height - paddedSize)
+        )
+
+        val cropRight = minOf(
+            bitmap.width,
+            cropLeft + paddedSize
+        )
+
+        val cropBottom = minOf(
+            bitmap.height,
+            cropTop + paddedSize
+        )
+
         return Bitmap.createBitmap(
             bitmap,
-            left,
-            top,
-            right - left,
-            bottom - top
+            cropLeft,
+            cropTop,
+            cropRight - cropLeft,
+            cropBottom - cropTop
         )
     }
 
@@ -358,7 +517,9 @@ class FaceEmbedder(
             return embedding
         }
 
-        return FloatArray(embedding.size) { index ->
+        return FloatArray(
+            embedding.size
+        ) { index ->
             embedding[index] / magnitude
         }
     }
@@ -378,7 +539,6 @@ class FaceEmbedder(
     private fun validateModel() {
         val inputTensor = interpreter.getInputTensor(0)
         val outputTensor = interpreter.getOutputTensor(0)
-
         val inputShape = inputTensor.shape()
         val outputShape = outputTensor.shape()
 
@@ -462,6 +622,7 @@ class FaceEmbedder(
     }
 
     fun close() {
+        landmarkDetector.close()
         interpreter.close()
     }
 }
