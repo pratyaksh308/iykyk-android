@@ -10,9 +10,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pratyaksh.iykyk.video.AppearanceSegment
 import com.pratyaksh.iykyk.video.AppearanceSegmenter
+import com.pratyaksh.iykyk.video.CollageGenerator
 import com.pratyaksh.iykyk.video.FaceEmbedder
 import com.pratyaksh.iykyk.video.FaceEmbeddingTester
 import com.pratyaksh.iykyk.video.FrameDetection
+import com.pratyaksh.iykyk.video.IdentityGrouper
+import com.pratyaksh.iykyk.video.PersonIdentity
 import com.pratyaksh.iykyk.video.RepresentativeFrame
 import com.pratyaksh.iykyk.video.RepresentativeFrameLoader
 import com.pratyaksh.iykyk.video.RepresentativeFrameSelector
@@ -25,8 +28,10 @@ class HomeViewModel(
     private val faceEmbeddingTester: FaceEmbeddingTester,
     private val faceEmbedder: FaceEmbedder,
     private val appearanceSegmenter: AppearanceSegmenter,
+    private val identityGrouper: IdentityGrouper,
     private val representativeFrameSelector: RepresentativeFrameSelector,
-    private val representativeFrameLoader: RepresentativeFrameLoader
+    private val representativeFrameLoader: RepresentativeFrameLoader,
+    private val collageGenerator: CollageGenerator
 ) : ViewModel() {
 
     var selectedVideoUri by mutableStateOf<Uri?>(null)
@@ -41,19 +46,38 @@ class HomeViewModel(
     var appearanceSegments by mutableStateOf<List<AppearanceSegment>>(emptyList())
         private set
 
+    var personIdentities by mutableStateOf<List<PersonIdentity>>(emptyList())
+        private set
+
     var representativeFrames by mutableStateOf<List<RepresentativeFrame>>(emptyList())
         private set
 
     var representativeBitmaps by mutableStateOf<List<Bitmap>>(emptyList())
         private set
 
+    var collageBitmap by mutableStateOf<Bitmap?>(null)
+        private set
+
+    var collageStatus by mutableStateOf<String?>(null)
+        private set
+
     fun onVideoSelected(uri: Uri?) {
         selectedVideoUri = uri
+
+        collageBitmap?.let {
+            if (!it.isRecycled) {
+                it.recycle()
+            }
+        }
+
+        collageBitmap = null
+        collageStatus = null
 
         if (uri == null) {
             selectedVideoName = null
             frameDetections = emptyList()
             appearanceSegments = emptyList()
+            personIdentities = emptyList()
             representativeFrames = emptyList()
             representativeBitmaps = emptyList()
             return
@@ -64,6 +88,7 @@ class HomeViewModel(
 
         frameDetections = emptyList()
         appearanceSegments = emptyList()
+        personIdentities = emptyList()
         representativeFrames = emptyList()
         representativeBitmaps = emptyList()
 
@@ -114,8 +139,9 @@ class HomeViewModel(
     }
 
     fun runEmbeddingTest() {
-        val uri = selectedVideoUri
-            ?: return
+        val uri =
+            selectedVideoUri
+                ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -141,10 +167,16 @@ class HomeViewModel(
     }
 
     fun runSegmentationTest() {
-        val detections = frameDetections
-        val uri = selectedVideoUri
+        val detections =
+            frameDetections
 
-        if (detections.isEmpty() || uri == null) {
+        val uri =
+            selectedVideoUri
+
+        if (
+            detections.isEmpty() ||
+            uri == null
+        ) {
             Log.w(
                 "HomeViewModel",
                 "No frame detections or video URI available for segmentation test"
@@ -156,6 +188,9 @@ class HomeViewModel(
             var dimensionBitmap: Bitmap? = null
 
             try {
+                collageStatus =
+                    "Processing collage..."
+
                 Log.d(
                     "HomeViewModel",
                     "Starting temporal appearance segmentation"
@@ -174,6 +209,29 @@ class HomeViewModel(
                     "Temporal appearance segmentation completed. " +
                             "Segments=${results.size}"
                 )
+
+                val identities =
+                    identityGrouper.group(
+                        uri = uri,
+                        appearanceSegments = results
+                    )
+
+                personIdentities =
+                    identities
+
+                Log.d(
+                    "HomeViewModel",
+                    "Identity grouping completed. " +
+                            "Identities=${identities.size}"
+                )
+
+                identities.forEach { identity ->
+                    Log.d(
+                        "HomeViewModel",
+                        "Identity ${identity.id}: " +
+                                "${identity.appearances.size} appearances"
+                    )
+                }
 
                 dimensionBitmap =
                     videoProcessor.extractFrame(
@@ -207,19 +265,32 @@ class HomeViewModel(
                             frameWidth = frameWidth,
                             frameHeight = frameHeight,
                             frameLoader = representativeFrameLoader
-                        )
+                        )?.takeIf {
+                            it.second != null
+                        }
                     }
 
-                val selectedFrames = selectedResults.map { it.first }
-                val selectedBitmaps = selectedResults.mapNotNull { it.second }
+                val selectedFrames =
+                    selectedResults.map {
+                        it.first
+                    }
 
-                representativeFrames = selectedFrames
-                representativeBitmaps = selectedBitmaps
+                val selectedBitmaps =
+                    selectedResults.map {
+                        it.second!!
+                    }
+
+                representativeFrames =
+                    selectedFrames
+
+                representativeBitmaps =
+                    selectedBitmaps
 
                 Log.d(
                     "HomeViewModel",
                     "Representative frame selection completed. " +
-                            "Frames=${selectedFrames.size}, Bitmaps=${selectedBitmaps.size}"
+                            "Frames=${selectedFrames.size}, " +
+                            "Bitmaps=${selectedBitmaps.size}"
                 )
 
                 selectedFrames.forEach { representative ->
@@ -230,7 +301,52 @@ class HomeViewModel(
                                 "rawSharpness=${"%.1f".format(representative.rawSharpness)}"
                     )
                 }
+
+                Log.d(
+                    "HomeViewModel",
+                    "Starting collage generation. " +
+                            "Identities=${identities.size}, " +
+                            "Representatives=${selectedFrames.size}"
+                )
+
+                val generatedCollage =
+                    collageGenerator.generate(
+                        identities = identities,
+                        representativeFrames = selectedFrames,
+                        representativeBitmaps = selectedBitmaps
+                    )
+
+                collageBitmap?.let {
+                    if (!it.isRecycled) {
+                        it.recycle()
+                    }
+                }
+
+                collageBitmap =
+                    generatedCollage
+
+                if (generatedCollage != null) {
+                    collageStatus =
+                        "Collage generated successfully"
+
+                    Log.d(
+                        "HomeViewModel",
+                        "Collage generation completed successfully. " +
+                                "Size=${generatedCollage.width}x${generatedCollage.height}"
+                    )
+                } else {
+                    collageStatus =
+                        "Collage generation returned no image"
+
+                    Log.e(
+                        "HomeViewModel",
+                        "Collage generation returned null"
+                    )
+                }
             } catch (exception: Exception) {
+                collageStatus =
+                    "Collage generation failed: ${exception.message}"
+
                 Log.e(
                     "HomeViewModel",
                     "SEGMENTATION TEST ERROR",
@@ -247,6 +363,12 @@ class HomeViewModel(
     }
 
     override fun onCleared() {
+        collageBitmap?.let {
+            if (!it.isRecycled) {
+                it.recycle()
+            }
+        }
+
         representativeBitmaps.forEach { bitmap ->
             if (!bitmap.isRecycled) {
                 bitmap.recycle()
@@ -255,6 +377,7 @@ class HomeViewModel(
 
         faceEmbedder.close()
         videoProcessor.close()
+
         super.onCleared()
     }
 }

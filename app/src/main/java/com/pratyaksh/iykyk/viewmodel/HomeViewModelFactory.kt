@@ -5,9 +5,12 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.pratyaksh.iykyk.video.AppearanceSegmenter
+import com.pratyaksh.iykyk.video.CollageGenerator
 import com.pratyaksh.iykyk.video.FaceDetector
 import com.pratyaksh.iykyk.video.FaceEmbedder
 import com.pratyaksh.iykyk.video.FaceEmbeddingTester
+import com.pratyaksh.iykyk.video.IdentityGrouper
+import com.pratyaksh.iykyk.video.IdentityProfileCache
 import com.pratyaksh.iykyk.video.RepresentativeFrameLoader
 import com.pratyaksh.iykyk.video.RepresentativeFrameSelector
 import com.pratyaksh.iykyk.video.VideoProcessor
@@ -18,45 +21,95 @@ class HomeViewModelFactory(
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
-            val faceDetector = FaceDetector()
+    override fun <T : ViewModel> create(
+        modelClass: Class<T>
+    ): T {
 
-            val videoProcessor = VideoProcessor(
-                contentResolver = contentResolver,
-                faceDetector = faceDetector
+        if (
+            modelClass.isAssignableFrom(
+                HomeViewModel::class.java
             )
+        ) {
 
-            val faceEmbedder = FaceEmbedder(context)
+            val faceDetector =
+                FaceDetector()
 
-            val faceEmbeddingTester = FaceEmbeddingTester(
-                videoProcessor = videoProcessor,
-                faceEmbedder = faceEmbedder
-            )
+            val videoProcessor =
+                VideoProcessor(
+                    contentResolver =
+                        contentResolver,
+                    faceDetector =
+                        faceDetector
+                )
 
-            val appearanceSegmenter = AppearanceSegmenter(
-                videoProcessor = videoProcessor,
-                faceEmbedder = faceEmbedder
-            )
+            val faceEmbedder =
+                FaceEmbedder(context)
+
+            val faceEmbeddingTester =
+                FaceEmbeddingTester(
+                    videoProcessor =
+                        videoProcessor,
+                    faceEmbedder =
+                        faceEmbedder
+                )
+
+            val appearanceSegmenter =
+                AppearanceSegmenter(
+                    videoProcessor =
+                        videoProcessor,
+                    faceEmbedder =
+                        faceEmbedder
+                )
+
+            val identityProfileCache =
+                IdentityProfileCache(
+                    context.applicationContext
+                )
+
+            val identityGrouper =
+                IdentityGrouper(
+                    videoProcessor =
+                        videoProcessor,
+                    faceEmbedder =
+                        faceEmbedder,
+                    profileCache =
+                        identityProfileCache
+                )
 
             val representativeFrameSelector =
                 RepresentativeFrameSelector()
 
             val representativeFrameLoader =
                 RepresentativeFrameLoader(
-                    videoProcessor = videoProcessor
+                    videoProcessor =
+                        videoProcessor
                 )
 
+            val collageGenerator =
+                CollageGenerator()
+
             return HomeViewModel(
-                videoProcessor = videoProcessor,
-                faceEmbeddingTester = faceEmbeddingTester,
-                faceEmbedder = faceEmbedder,
-                appearanceSegmenter = appearanceSegmenter,
-                representativeFrameSelector = representativeFrameSelector,
-                representativeFrameLoader = representativeFrameLoader
+                videoProcessor =
+                    videoProcessor,
+                faceEmbeddingTester =
+                    faceEmbeddingTester,
+                faceEmbedder =
+                    faceEmbedder,
+                appearanceSegmenter =
+                    appearanceSegmenter,
+                identityGrouper =
+                    identityGrouper,
+                representativeFrameSelector =
+                    representativeFrameSelector,
+                representativeFrameLoader =
+                    representativeFrameLoader,
+                collageGenerator =
+                    collageGenerator
             ) as T
         }
 
-        throw IllegalArgumentException("Unknown ViewModel class")
+        throw IllegalArgumentException(
+            "Unknown ViewModel class"
+        )
     }
 }
