@@ -1,4 +1,10 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.pipeline
+
+import com.pratyaksh.iykyk.video.ml.FaceEmbedder
+import com.pratyaksh.iykyk.video.model.AppearanceSegment
+import com.pratyaksh.iykyk.video.model.ClothingDescriptor
+import com.pratyaksh.iykyk.video.model.FaceObservation
+import com.pratyaksh.iykyk.video.model.PersonIdentity
 
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
@@ -41,13 +47,11 @@ class IdentityGrouper(
 
         val rawIdentities = buildIdentities(profiles = profiles, seeds = seeds, assignments = assignments)
 
-        // THE GHOST FILTER: Drop any corrupted identity with only 1 appearance
         val validIdentities = rawIdentities.filter { person ->
             person.appearances.size >= 2 ||
                     (person.appearances.first().endTimestampMs - person.appearances.first().startTimestampMs > 1500L)
         }
 
-        // Re-index so the UI perfectly displays Person 1 through 5
         val finalIdentities = validIdentities.mapIndexed { index, person ->
             PersonIdentity(
                 id = index + 1,

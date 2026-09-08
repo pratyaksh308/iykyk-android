@@ -1,4 +1,8 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.collage
+
+import com.pratyaksh.iykyk.video.model.DetectedFace
+import com.pratyaksh.iykyk.video.model.PersonIdentity
+import com.pratyaksh.iykyk.video.pipeline.RepresentativeFrame
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -131,7 +135,6 @@ class CollageGenerator {
         }
         canvas.drawRect(0f, 0f, OUTPUT_WIDTH.toFloat(), OUTPUT_HEIGHT.toFloat(), bgPaint)
 
-        // Top-left ambient coral glow
         val coralGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 120f, 120f, 650f,
@@ -142,7 +145,6 @@ class CollageGenerator {
         }
         canvas.drawCircle(120f, 120f, 650f, coralGlow)
 
-        // Top-right electric teal glow
         val tealGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 960f, 160f, 550f,
@@ -153,7 +155,6 @@ class CollageGenerator {
         }
         canvas.drawCircle(960f, 160f, 550f, tealGlow)
 
-        // Bottom-right ambient purple glow
         val purpleGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 960f, 1800f, 700f,
@@ -166,7 +167,6 @@ class CollageGenerator {
     }
 
     private fun drawHeader(canvas: Canvas, peopleCount: Int) {
-        // Pill Badge: iykyk • squad ✨
         val pillRect = RectF(OUTER_MARGIN, 56f, OUTER_MARGIN + 280f, 110f)
         val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
@@ -196,7 +196,6 @@ class CollageGenerator {
         }
         canvas.drawText("squad ✨", pillRect.left + 132f, pillRect.top + 35f, tagTextPaint)
 
-        // Right Pill: curated
         val curatedRect = RectF(OUTPUT_WIDTH - OUTER_MARGIN - 175f, 60f, OUTPUT_WIDTH - OUTER_MARGIN, 106f)
         val curatedBg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(160, 34, 28, 46)
@@ -211,7 +210,6 @@ class CollageGenerator {
         }
         canvas.drawText("✦ curated", curatedRect.centerX(), curatedRect.top + 30f, curatedTextPaint)
 
-        // Main Poster Title: the crew.
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = 52f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -219,7 +217,6 @@ class CollageGenerator {
         }
         canvas.drawText("the crew.", OUTER_MARGIN, 180f, titlePaint)
 
-        // Subtitle: one best shot of all N people.
         val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = 24f
             color = Color.rgb(175, 168, 186)
@@ -263,7 +260,6 @@ class CollageGenerator {
         }
         canvas.drawText("made with iykyk • on-device AI", OUTER_MARGIN, footerY, footerTextPaint)
 
-        // Four colored accent dots on right
         val dotRadius = 8f
         val rightX = OUTPUT_WIDTH - OUTER_MARGIN
 
@@ -595,19 +591,16 @@ class CollageGenerator {
         val top = destination.top + 16f
         val pillRect = RectF(left, top, left + pillWidth, top + pillHeight)
 
-        // Drop shadow
         val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(90, 0, 0, 0)
         }
         canvas.drawRoundRect(RectF(left + 2f, top + 3f, left + pillWidth + 2f, top + pillHeight + 3f), 18f, 18f, shadowPaint)
 
-        // Badge pill gradient
         val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(pillRect.left, pillRect.top, pillRect.right, pillRect.bottom, badgeStyle.bgStart, badgeStyle.bgEnd, Shader.TileMode.CLAMP)
         }
         canvas.drawRoundRect(pillRect, 18f, 18f, bgPaint)
 
-        // Text
         textPaint.color = badgeStyle.textColor
         val yOffset = (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(badgeStyle.label, pillRect.left + 14f, pillRect.centerY() - yOffset, textPaint)

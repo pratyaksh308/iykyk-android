@@ -1,4 +1,4 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.pipeline
 
 import android.graphics.Bitmap
 import android.net.Uri

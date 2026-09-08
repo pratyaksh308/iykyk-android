@@ -1,4 +1,7 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.pipeline
+
+import com.pratyaksh.iykyk.video.ml.FaceDetector
+import com.pratyaksh.iykyk.video.model.FrameDetection
 
 import android.content.ContentResolver
 import android.graphics.Bitmap

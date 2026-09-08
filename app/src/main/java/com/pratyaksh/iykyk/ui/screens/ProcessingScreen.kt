@@ -1,4 +1,4 @@
-package com.pratyaksh.iykyk.ui
+package com.pratyaksh.iykyk.ui.screens
 
 import android.graphics.Bitmap
 import android.os.Build

@@ -1,4 +1,7 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.pipeline
+
+import com.pratyaksh.iykyk.video.model.AppearanceSegment
+import com.pratyaksh.iykyk.video.model.DetectedFace
 
 import android.graphics.Bitmap
 import android.net.Uri

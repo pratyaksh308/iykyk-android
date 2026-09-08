@@ -17,9 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.pratyaksh.iykyk.ui.CollageScreen
-import com.pratyaksh.iykyk.ui.HomeScreen
-import com.pratyaksh.iykyk.ui.ProcessingScreen
+import com.pratyaksh.iykyk.ui.screens.CollageScreen
+import com.pratyaksh.iykyk.ui.screens.HomeScreen
+import com.pratyaksh.iykyk.ui.screens.ProcessingScreen
 import com.pratyaksh.iykyk.ui.theme.IykykTheme
 import com.pratyaksh.iykyk.viewmodel.HomeViewModel
 import com.pratyaksh.iykyk.viewmodel.HomeViewModelFactory

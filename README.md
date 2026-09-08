@@ -6,9 +6,9 @@
 
 ## 🎬 Demo Video
 
-[![Watch Demo Video](https://img.shields.io/badge/Google_Drive-Demo_Video-blue?style=for-the-badge&logo=googledrive)](YOUR_GOOGLE_DRIVE_DEMO_VIDEO_LINK_HERE)
+[![Watch Demo Video](https://img.shields.io/badge/Google_Drive-Demo_Video-blue?style=for-the-badge&logo=googledrive)](https://drive.google.com/file/d/1olts1aXGdezV9ReeSGQ6Xt1eTPga80-Q/view?usp=sharing)
 
-> 📌 **Demo Video Link**: [GOOGLE_DRIVE_DEMO_VIDEO_LINK_HERE](YOUR_GOOGLE_DRIVE_DEMO_VIDEO_LINK_HERE)
+> 📌 **Demo Video Link**: [GOOGLE_DRIVE_DEMO_VIDEO_LINK_HERE](https://drive.google.com/file/d/1olts1aXGdezV9ReeSGQ6Xt1eTPga80-Q/view?usp=sharing)
 >
 
 ---
@@ -18,7 +18,7 @@
 | Deliverable | Location / Access Link |
 | :--- | :--- |
 | **Git Repository** | [Current Repository Root](./) |
-| **Demo Video (Google Drive)** | [Google Drive Demo Video Link](YOUR_GOOGLE_DRIVE_DEMO_VIDEO_LINK_HERE) |
+| **Demo Video (Google Drive)** | [Google Drive Demo Video Link](https://drive.google.com/file/d/1olts1aXGdezV9ReeSGQ6Xt1eTPga80-Q/view?usp=sharing) |
 | **Debug APK** | `app/build/outputs/apk/debug/app-debug.apk` |
 | **Target Platform** | Android 8.0+ (`minSdk 26`, `compileSdk 37`, `targetSdk 37`) |
 
@@ -26,19 +26,19 @@
 
 ## 📸 Application Screenshots
 
-| Screen 1: Video Selection | Screen 2: Processing Pipeline | Screen 3: Live Progress & Logs |
+| Screen1 Homescreen Dark | Screem2 Homescreen Light | Screen3 Video Selection |
 | :---: | :---: | :---: |
-| <img src="./screenshots/Screenshot_20260908_072229.jpg.jpeg" width="240" alt="Home Screen Video Picker"/> | <img src="./screenshots/Screenshot_20260908_072237.jpg.jpeg" width="240" alt="Processing Pipeline Progress"/> | <img src="./screenshots/Screenshot_20260908_072244.jpg.jpeg" width="240" alt="Stage Analysis Progress"/> |
+| <img src="./screenshots/Screenshot_20260908_072229.jpg.jpeg" width="240" alt="Screen1 Homescreen Dark"/> | <img src="./screenshots/Screenshot_20260908_072237.jpg.jpeg" width="240" alt="Screem2 Homescreen Light"/> | <img src="./screenshots/Screenshot_20260908_072244.jpg.jpeg" width="240" alt="Screen3 Video Selection"/> |
 | *Home screen with video picker and sample video quick selectors.* | *Off-main-thread processing showing live progress bar & active phase.* | *Detailed stage indicators for sampling, face detection & embedding.* |
 
-| Screen 4: Person Identities & Counts | Screen 5: Representative Shot Selection |
+| Screen 4 Selected Video Preview | Screen 5 Live Processing And Logs |
 | :---: | :---: |
-| <img src="./screenshots/Screenshot_20260908_072249.jpg.jpeg" width="240" alt="Cluster Results & Appearance Counts"/> | <img src="./screenshots/Screenshot_20260908_072306.jpg.jpeg" width="240" alt="Appearance Segment Details"/> |
+| <img src="./screenshots/Screenshot_20260908_072249.jpg.jpeg" width="240" alt="Screen 4 Selected Video Preview"/> | <img src="./screenshots/Screenshot_20260908_072306.jpg.jpeg" width="240" alt="Screen 5 Live Processing And Logs"/> |
 | *Clustered unique person identities displaying appearance counts per individual.* | *Quality-based representative frame selection with high frontality & eye openness.* |
 
-| Screen 6: Final Bento Collage | Screen 7: Save to Gallery & Share |
+| Screen 6 Person Identities And Counts | Screen 7 Final Bento Collage |
 | :---: | :---: |
-| <img src="./screenshots/Screenshot_20260908_072513.jpg.jpeg" width="240" alt="Generated Bento Collage Output"/> | <img src="./screenshots/Screenshot_20260908_072520.jpg.jpeg" width="240" alt="Save to Gallery and Share Sheet"/> |
+| <img src="./screenshots/Screenshot_20260908_072513.jpg.jpeg" width="240" alt="Screen 6 Person Identities And Counts"/> | <img src="./screenshots/Screenshot_20260908_072520.jpg.jpeg" width="240" alt="Screen 7 Final Bento Collage"/> |
 | *Adaptive 9:16 portrait bento collage layout with generous face framing.* | *One-tap save to system gallery (`MediaStore`) and native Android share sheet.* |
 
 ---

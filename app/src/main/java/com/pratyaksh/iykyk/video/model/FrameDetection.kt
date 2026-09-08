@@ -1,4 +1,4 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.model
 
 data class FrameDetection(
     val timestampMs: Long,

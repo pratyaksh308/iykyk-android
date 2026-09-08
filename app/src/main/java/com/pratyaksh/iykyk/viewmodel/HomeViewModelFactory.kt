@@ -4,14 +4,14 @@ import android.content.ContentResolver
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.pratyaksh.iykyk.video.AppearanceSegmenter
-import com.pratyaksh.iykyk.video.CollageGenerator
-import com.pratyaksh.iykyk.video.FaceDetector
-import com.pratyaksh.iykyk.video.FaceEmbedder
-import com.pratyaksh.iykyk.video.IdentityGrouper
-import com.pratyaksh.iykyk.video.RepresentativeFrameLoader
-import com.pratyaksh.iykyk.video.RepresentativeFrameSelector
-import com.pratyaksh.iykyk.video.VideoProcessor
+import com.pratyaksh.iykyk.video.collage.CollageGenerator
+import com.pratyaksh.iykyk.video.ml.FaceDetector
+import com.pratyaksh.iykyk.video.ml.FaceEmbedder
+import com.pratyaksh.iykyk.video.pipeline.AppearanceSegmenter
+import com.pratyaksh.iykyk.video.pipeline.IdentityGrouper
+import com.pratyaksh.iykyk.video.pipeline.RepresentativeFrameLoader
+import com.pratyaksh.iykyk.video.pipeline.RepresentativeFrameSelector
+import com.pratyaksh.iykyk.video.pipeline.VideoProcessor
 
 class HomeViewModelFactory(
     private val contentResolver: ContentResolver,

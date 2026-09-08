@@ -1,4 +1,10 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.pipeline
+
+import com.pratyaksh.iykyk.video.ml.FaceEmbedder
+import com.pratyaksh.iykyk.video.model.AppearanceSegment
+import com.pratyaksh.iykyk.video.model.DetectedFace
+import com.pratyaksh.iykyk.video.model.FaceObservation
+import com.pratyaksh.iykyk.video.model.FrameDetection
 
 import android.graphics.Bitmap
 import android.graphics.Rect
@@ -60,8 +66,6 @@ class AppearanceSegmenter(
             onProgress(i.toFloat() / max(1, frameDetections.size).toFloat())
             val timestampMs = frame.timestampMs
 
-            // EDGE REJECTION: Filter out severely cropped faces (like split-screens)
-            // Normal faces have a ratio ~1.0. A half-face crop will be heavily distorted.
             val faces = frame.faces.filter { face ->
                 val aspectRatio = face.width.toFloat() / face.height.toFloat()
                 aspectRatio > 0.70f

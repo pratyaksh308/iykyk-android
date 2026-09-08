@@ -1,4 +1,4 @@
-package com.pratyaksh.iykyk.video
+package com.pratyaksh.iykyk.video.ml
 
 import android.content.Context
 import android.graphics.Bitmap
