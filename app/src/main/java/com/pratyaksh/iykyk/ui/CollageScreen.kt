@@ -1,8 +1,6 @@
 package com.pratyaksh.iykyk.ui
 
-import android.app.Activity
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -35,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -185,16 +182,6 @@ fun CollageScreenContent(
         label = "shimmerProgress"
     )
 
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(750, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -207,7 +194,6 @@ fun CollageScreenContent(
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Brand Header
             item {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -295,7 +281,6 @@ fun CollageScreenContent(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Main Headline
             item {
                 Column(
                     modifier = Modifier
@@ -333,7 +318,6 @@ fun CollageScreenContent(
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // Collage Hero Section (9:16 Card)
             item {
                 Box(
                     modifier = Modifier
@@ -356,7 +340,6 @@ fun CollageScreenContent(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Action CTA Buttons Section
             item {
                 Column(
                     modifier = Modifier
@@ -368,7 +351,6 @@ fun CollageScreenContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Primary Share CTA
                     val shareInteraction = remember { MutableInteractionSource() }
                     val isSharePressed by shareInteraction.collectIsPressedAsState()
                     val shareScale by animateFloatAsState(
@@ -434,7 +416,6 @@ fun CollageScreenContent(
                         }
                     }
 
-                    // Secondary Save CTA
                     val saveInteraction = remember { MutableInteractionSource() }
                     val isSavePressed by saveInteraction.collectIsPressedAsState()
                     val saveScale by animateFloatAsState(
@@ -544,174 +525,41 @@ private fun CollageHeroCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(32.dp),
-                ambientColor = Color(0x1A19161D),
-                spotColor = Color(0x1A19161D)
+                elevation = 20.dp,
+                shape = RoundedCornerShape(28.dp),
+                ambientColor = Color(0x3319161D),
+                spotColor = Color(0x3319161D)
             )
-            .clip(RoundedCornerShape(32.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        IykykTheme.colors.surface,
-                        IykykTheme.colors.surfaceContainerLow,
-                        IykykTheme.colors.surfaceContainer
-                    )
-                )
-            )
-            .padding(12.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(IykykTheme.colors.surfaceContainerHigh)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
+        if (collageBitmap != null && !collageBitmap.isRecycled) {
+            Image(
+                bitmap = collageBitmap.asImageBitmap(),
+                contentDescription = "Generated People Collage",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(9f / 16f),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            BentoGridPlaceholder(
+                representativeBitmaps = representativeBitmaps,
+                badgePulseScale = badgePulseScale
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable { onBackClick() },
+            contentAlignment = Alignment.Center
         ) {
-            // Top Mini Story Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "iykyk",
-                        style = TextStyle(
-                            fontFamily = Jakarta,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = IykykTheme.colors.ink
-                        )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(IykykTheme.colors.primaryContainer)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(IykykTheme.colors.surfaceContainerHigh)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "the crew",
-                            style = TextStyle(
-                                fontFamily = Jakarta,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = IykykTheme.colors.mutedInk
-                            )
-                        )
-                        Text(text = "✨", fontSize = 10.sp)
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { onBackClick() }
-                        .padding(4.dp)
-                ) {
-                    BackArrowIcon()
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Asymmetric Bento Photo Collage Area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(9f / 13.5f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(IykykTheme.colors.surfaceContainerHigh)
-            ) {
-                if (collageBitmap != null && !collageBitmap.isRecycled) {
-                    Image(
-                        bitmap = collageBitmap.asImageBitmap(),
-                        contentDescription = "Generated People Collage",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    BentoGridPlaceholder(
-                        representativeBitmaps = representativeBitmaps,
-                        badgePulseScale = badgePulseScale
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Collage Bottom Footer Brand Stamp
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "made with iykyk",
-                        style = TextStyle(
-                            fontFamily = Jakarta,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = IykykTheme.colors.mutedInk
-                        )
-                    )
-                    Text(
-                        text = "•",
-                        style = TextStyle(
-                            fontFamily = Jakarta,
-                            fontSize = 10.sp,
-                            color = IykykTheme.colors.mutedInk.copy(alpha = 0.4f)
-                        )
-                    )
-                    Text(
-                        text = "on-device",
-                        style = TextStyle(
-                            fontFamily = Jakarta,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = IykykTheme.colors.mutedInk.copy(alpha = 0.8f)
-                        )
-                    )
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(IykykTheme.colors.purple)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(IykykTheme.colors.yellow)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(IykykTheme.colors.primaryContainer)
-                    )
-                }
-            }
+            BackArrowIcon()
         }
     }
 }
@@ -735,14 +583,12 @@ private fun BentoGridPlaceholder(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Top Row (7:5 Split)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(7f),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Tile 1
             Box(
                 modifier = Modifier
                     .weight(7f)
@@ -782,7 +628,6 @@ private fun BentoGridPlaceholder(
                 }
             }
 
-            // Tile 2
             Box(
                 modifier = Modifier
                     .weight(5f)
@@ -823,14 +668,12 @@ private fun BentoGridPlaceholder(
             }
         }
 
-        // Bottom Row (4:4:4 Split)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(5f),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Tile 3
             Box(
                 modifier = Modifier
                     .weight(4f)
@@ -856,7 +699,6 @@ private fun BentoGridPlaceholder(
                 }
             }
 
-            // Tile 4
             Box(
                 modifier = Modifier
                     .weight(4f)
@@ -896,7 +738,6 @@ private fun BentoGridPlaceholder(
                 }
             }
 
-            // Tile 5
             Box(
                 modifier = Modifier
                     .weight(4f)
@@ -1114,15 +955,6 @@ private fun LockIcon() {
             size = Size(width * 0.40f, height * 0.50f)
         )
     }
-}
-
-private fun Color.toArgb(): Int {
-    return android.graphics.Color.argb(
-        (alpha * 255).toInt(),
-        (red * 255).toInt(),
-        (green * 255).toInt(),
-        (blue * 255).toInt()
-    )
 }
 
 @Preview(name = "Collage Screen - Light", showBackground = true, showSystemUi = true)

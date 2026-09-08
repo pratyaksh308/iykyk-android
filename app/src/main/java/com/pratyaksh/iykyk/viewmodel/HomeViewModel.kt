@@ -19,7 +19,6 @@ import com.pratyaksh.iykyk.video.AppearanceSegmenter
 import com.pratyaksh.iykyk.video.CollageGenerator
 import com.pratyaksh.iykyk.video.DetectedFace
 import com.pratyaksh.iykyk.video.FaceEmbedder
-import com.pratyaksh.iykyk.video.FaceEmbeddingTester
 import com.pratyaksh.iykyk.video.FrameDetection
 import com.pratyaksh.iykyk.video.IdentityGrouper
 import com.pratyaksh.iykyk.video.PersonIdentity
@@ -33,7 +32,6 @@ import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val videoProcessor: VideoProcessor,
-    private val faceEmbeddingTester: FaceEmbeddingTester,
     private val faceEmbedder: FaceEmbedder,
     private val appearanceSegmenter: AppearanceSegmenter,
     private val identityGrouper: IdentityGrouper,
@@ -45,49 +43,34 @@ class HomeViewModel(
 
     var selectedVideoUri by mutableStateOf<Uri?>(null)
         private set
-
     var selectedVideoName by mutableStateOf<String?>(null)
         private set
-
     var frameDetections by mutableStateOf<List<FrameDetection>>(emptyList())
         private set
-
     var appearanceSegments by mutableStateOf<List<AppearanceSegment>>(emptyList())
         private set
-
     var personIdentities by mutableStateOf<List<PersonIdentity>>(emptyList())
         private set
-
     var personResults by mutableStateOf<List<PersonResultItem>>(emptyList())
         private set
-
     var representativeFrames by mutableStateOf<List<RepresentativeFrame>>(emptyList())
         private set
-
     var representativeBitmaps by mutableStateOf<List<Bitmap>>(emptyList())
         private set
-
     var collageBitmap by mutableStateOf<Bitmap?>(null)
         private set
-
     var collageStatus by mutableStateOf<String?>(null)
         private set
-
     var savedCollageUri by mutableStateOf<Uri?>(null)
         private set
-
     var videoThumbnailBitmap by mutableStateOf<Bitmap?>(null)
         private set
-
     var videoDurationText by mutableStateOf("0:30")
         private set
-
     var isProcessing by mutableStateOf(false)
         private set
-
     var processingProgress by mutableStateOf(0f)
         private set
-
     var processingStage by mutableStateOf("getting ready")
         private set
 
@@ -106,36 +89,26 @@ class HomeViewModel(
 
     var processingEstimatedTimeLeft by mutableStateOf("")
         private set
-
     var processingFacesCount by mutableStateOf(0)
         private set
-
     var processingCompleted by mutableStateOf(false)
         private set
-
     var processingError by mutableStateOf<String?>(null)
         private set
 
     fun onVideoSelected(uri: Uri?) {
         processingJob?.cancel()
         processingJob = null
-
         selectedVideoUri = uri
 
         videoThumbnailBitmap?.let {
-            if (!it.isRecycled) {
-                it.recycle()
-            }
+            if (!it.isRecycled) it.recycle()
         }
-
         videoThumbnailBitmap = null
 
         collageBitmap?.let {
-            if (!it.isRecycled) {
-                it.recycle()
-            }
+            if (!it.isRecycled) it.recycle()
         }
-
         collageBitmap = null
         collageStatus = null
         savedCollageUri = null
@@ -144,6 +117,7 @@ class HomeViewModel(
         personIdentities = emptyList()
         representativeFrames = emptyList()
         representativeBitmaps = emptyList()
+        videoProcessor.clearCache()
         processingCompleted = false
         processingError = null
         isProcessing = false
@@ -162,74 +136,29 @@ class HomeViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val thumbnail =
-                    videoProcessor.extractFrame(
-                        uri = uri,
-                        timestampMs = 0L
-                    )
-
-                val durationMs =
-                    videoProcessor.getVideoDuration(uri)
-
-                val totalSeconds =
-                    (durationMs / 1000).toInt()
-
-                val minutes =
-                    totalSeconds / 60
-
-                val seconds =
-                    totalSeconds % 60
-
-                val formattedDuration =
-                    "%d:%02d".format(
-                        minutes,
-                        seconds
-                    )
+                val thumbnail = videoProcessor.extractFrame(uri = uri, timestampMs = 0L)
+                val durationMs = videoProcessor.getVideoDuration(uri)
+                val totalSeconds = (durationMs / 1000).toInt()
+                val minutes = totalSeconds / 60
+                val seconds = totalSeconds % 60
+                val formattedDuration = "%d:%02d".format(minutes, seconds)
 
                 videoThumbnailBitmap = thumbnail
-
                 if (durationMs > 0) {
                     videoDurationText = formattedDuration
                 }
             } catch (exception: Exception) {
-                Log.e(
-                    "HomeViewModel",
-                    "Thumbnail extraction error",
-                    exception
-                )
-            }
-        }
-    }
-
-    fun runEmbeddingTest() {
-        val uri =
-            selectedVideoUri
-                ?: return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                faceEmbeddingTester.run(uri)
-            } catch (exception: Exception) {
-                Log.e(
-                    "HomeViewModel",
-                    "FACE EMBEDDING TEST ERROR",
-                    exception
-                )
+                Log.e("HomeViewModel", "Thumbnail extraction error", exception)
             }
         }
     }
 
     fun runSegmentationTest() {
-        val uri =
-            selectedVideoUri
-                ?: return
-
+        val uri = selectedVideoUri ?: return
         processingJob?.cancel()
         processingJob = null
 
-        if (isProcessing) {
-            return
-        }
+        if (isProcessing) return
 
         processingJob = viewModelScope.launch(Dispatchers.Default) {
             isProcessing = true
@@ -258,148 +187,100 @@ class HomeViewModel(
             var dimensionBitmap: Bitmap? = null
 
             try {
-                val durationMs = videoProcessor.getVideoDuration(uri)
-                val adaptiveIntervalMs = if (durationMs > 35000L) {
-                    kotlin.math.max(200L, durationMs / 120L)
-                } else {
-                    200L
+                if (videoThumbnailBitmap == null || videoThumbnailBitmap?.isRecycled == true) {
+                    try {
+                        videoThumbnailBitmap = videoProcessor.extractFrame(uri = uri, timestampMs = 0L)
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Failed to extract thumbnail before processing", e)
+                    }
                 }
 
-                val detections =
-                    videoProcessor.processVideo(
-                        uri = uri,
-                        intervalMs = adaptiveIntervalMs,
-                        onProgress = { p ->
-                            updateProgress(p * 0.35f)
-                        }
-                    )
+                val adaptiveIntervalMs = 100L
+
+                val detections = videoProcessor.processVideo(
+                    uri = uri,
+                    intervalMs = adaptiveIntervalMs,
+                    onProgress = { p -> updateProgress(p * 0.85f) }
+                )
+
+                if ((videoThumbnailBitmap == null || videoThumbnailBitmap?.isRecycled == true) && detections.isNotEmpty()) {
+                    try {
+                        val firstTs = detections.first().timestampMs
+                        videoThumbnailBitmap = videoProcessor.extractFrame(uri = uri, timestampMs = firstTs)
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Failed to extract thumbnail from first detection", e)
+                    }
+                }
 
                 frameDetections = detections
-
-                processingFacesCount =
-                    detections.sumOf {
-                        it.faces.size
-                    }
-
-                updateProgress(0.35f)
+                processingFacesCount = detections.sumOf { it.faces.size }
+                updateProgress(0.85f)
                 processingStage = "tracking appearances"
 
-                val results =
-                    appearanceSegmenter.segment(
-                        uri = uri,
-                        frameDetections = detections,
-                        onProgress = { p ->
-                            updateProgress(0.35f + p * 0.20f)
-                        }
-                    )
+                val results = appearanceSegmenter.segment(
+                    uri = uri,
+                    frameDetections = detections,
+                    onProgress = { p -> updateProgress(0.85f + p * 0.05f) }
+                )
 
                 appearanceSegments = results
-
-                updateProgress(0.55f)
+                updateProgress(0.90f)
                 processingStage = "figuring out who's who"
 
-                val identities =
-                    identityGrouper.group(
-                        uri = uri,
-                        appearanceSegments = results,
-                        onProgress = { p ->
-                            updateProgress(0.55f + p * 0.20f)
-                        }
-                    )
+                val identities = identityGrouper.group(
+                    uri = uri,
+                    appearanceSegments = results,
+                    onProgress = { p -> updateProgress(0.90f + p * 0.04f) }
+                )
 
                 personIdentities = identities
-
-                updateProgress(0.75f)
+                appearanceSegments = identities.flatMap { it.appearances }
+                updateProgress(0.94f)
                 processingStage = "picking the best shots"
 
-                dimensionBitmap =
-                    videoProcessor.extractFrame(
-                        uri = uri,
-                        timestampMs = 0L
-                    ) ?: detections.firstOrNull()?.timestampMs?.let {
-                        videoProcessor.extractFrame(
-                            uri = uri,
-                            timestampMs = it
-                        )
-                    }
+                dimensionBitmap = videoProcessor.extractFrame(uri = uri, timestampMs = 0L)
+                    ?: detections.firstOrNull()?.timestampMs?.let { videoProcessor.extractFrame(uri = uri, timestampMs = it) }
 
-                if (dimensionBitmap == null) {
-                    throw IllegalStateException(
-                        "Unable to extract frame for video dimensions"
-                    )
-                }
+                if (dimensionBitmap == null) throw IllegalStateException("Unable to extract frame for video dimensions")
 
-                val frameWidth =
-                    dimensionBitmap.width
-
-                val frameHeight =
-                    dimensionBitmap.height
-
+                val frameWidth = dimensionBitmap.width
+                val frameHeight = dimensionBitmap.height
                 val totalSegments = results.size
-                val selectedResults =
-                    results.mapIndexed { index, segment ->
-                        val result = representativeFrameSelector
-                            .select(
-                                uri = uri,
-                                segment = segment,
-                                frameWidth = frameWidth,
-                                frameHeight = frameHeight,
-                                frameLoader = representativeFrameLoader
-                            )
-                            ?.takeIf {
-                                it.second != null
-                            }
 
-                        val progressStep = 0.75f + (((index + 1).toFloat() / kotlin.math.max(1, totalSegments).toFloat()) * 0.15f)
-                        updateProgress(progressStep)
+                val selectedResults = results.mapIndexed { index, segment ->
+                    val result = representativeFrameSelector.select(
+                        uri = uri,
+                        segment = segment,
+                        frameWidth = frameWidth,
+                        frameHeight = frameHeight,
+                        frameLoader = representativeFrameLoader
+                    )?.takeIf { it.second != null }
 
-                        result
-                    }.filterNotNull()
+                    val progressStep = 0.94f + (((index + 1).toFloat() / kotlin.math.max(1, totalSegments).toFloat()) * 0.04f)
+                    updateProgress(progressStep)
+                    result
+                }.filterNotNull()
 
-                val selectedFrames =
-                    selectedResults.map {
-                        it.first
-                    }
+                val selectedFrames = selectedResults.map { it.first }
+                val selectedBitmaps = selectedResults.map { it.second!! }
+                representativeFrames = selectedFrames
+                representativeBitmaps = selectedBitmaps
 
-                val selectedBitmaps =
-                    selectedResults.map {
-                        it.second!!
-                    }
-
-                representativeFrames =
-                    selectedFrames
-
-                representativeBitmaps =
-                    selectedBitmaps
-
-                updateProgress(0.90f)
+                updateProgress(0.98f)
                 processingStage = "making your collage"
 
-                val generatedCollage =
-                    collageGenerator.generate(
-                        identities = identities,
-                        representativeFrames = selectedFrames,
-                        representativeBitmaps = selectedBitmaps
-                    )
+                val generatedCollage = collageGenerator.generate(
+                    identities = identities,
+                    representativeFrames = selectedFrames,
+                    representativeBitmaps = selectedBitmaps
+                )
 
-                collageBitmap?.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
+                collageBitmap?.let { if (!it.isRecycled) it.recycle() }
+                collageBitmap = generatedCollage
 
-                collageBitmap =
-                    generatedCollage
+                if (generatedCollage == null) throw IllegalStateException("Unable to generate collage")
 
-                if (generatedCollage == null) {
-                    throw IllegalStateException(
-                        "Unable to generate collage"
-                    )
-                }
-
-                collageStatus =
-                    "Collage generated successfully"
-
+                collageStatus = "Collage generated successfully"
                 savedCollageUri = null
 
                 val identityCandidates = identities.map { identity ->
@@ -407,16 +288,10 @@ class HomeViewModel(
                     identity to bestCandidate
                 }
 
-                val bestOverallIdentity = identityCandidates.maxByOrNull { (_, candidate) ->
-                    candidate?.frame?.score ?: Float.MIN_VALUE
-                }?.first
+                val bestOverallIdentity = identityCandidates.maxByOrNull { (_, candidate) -> candidate?.frame?.score ?: Float.MIN_VALUE }?.first
 
                 val resultsList = identityCandidates.map { (identity, candidate) ->
-                    val faceThumbnail = if (candidate != null) {
-                        cropFaceThumbnail(candidate.bitmap, candidate.frame.face) ?: candidate.bitmap
-                    } else {
-                        null
-                    }
+                    val faceThumbnail = if (candidate != null) cropFaceThumbnail(candidate.bitmap, candidate.frame.face) ?: candidate.bitmap else null
                     PersonResultItem(
                         id = identity.id,
                         name = identity.name,
@@ -432,34 +307,18 @@ class HomeViewModel(
                 processingEstimatedTimeLeft = ""
                 processingCompleted = true
             } catch (exception: Exception) {
-                processingError =
-                    exception.message
-                        ?: "Something went wrong"
-
-                collageStatus =
-                    "Collage generation failed: ${exception.message}"
-
-                Log.e(
-                    "HomeViewModel",
-                    "PROCESSING ERROR",
-                    exception
-                )
+                processingError = exception.message ?: "Something went wrong"
+                collageStatus = "Collage generation failed: ${exception.message}"
+                Log.e("HomeViewModel", "PROCESSING ERROR", exception)
             } finally {
-                dimensionBitmap?.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
-
+                dimensionBitmap?.let { if (!it.isRecycled) it.recycle() }
+                videoProcessor.clearCache()
                 isProcessing = false
             }
         }
     }
 
-    private data class RepresentativeCandidate(
-        val frame: RepresentativeFrame,
-        val bitmap: Bitmap
-    )
+    private data class RepresentativeCandidate(val frame: RepresentativeFrame, val bitmap: Bitmap)
 
     private fun findBestRepresentativeForIdentity(
         identity: PersonIdentity,
@@ -470,22 +329,11 @@ class HomeViewModel(
             representativeFrames.indices.mapNotNull { index ->
                 val frame = representativeFrames[index]
                 val bitmap = representativeBitmaps.getOrNull(index)
-
-                if (
-                    bitmap != null &&
-                    frame.timestampMs >= segment.startTimestampMs &&
-                    frame.timestampMs <= segment.endTimestampMs
-                ) {
-                    RepresentativeCandidate(
-                        frame = frame,
-                        bitmap = bitmap
-                    )
-                } else {
-                    null
-                }
+                if (bitmap != null && frame.timestampMs >= segment.startTimestampMs && frame.timestampMs <= segment.endTimestampMs) {
+                    RepresentativeCandidate(frame = frame, bitmap = bitmap)
+                } else null
             }.maxByOrNull { it.frame.score }
         }
-
         return candidates.maxByOrNull { it.frame.score }
     }
 
@@ -493,11 +341,9 @@ class HomeViewModel(
         return try {
             val imageWidth = bitmap.width.toFloat()
             val imageHeight = bitmap.height.toFloat()
-
             val padding = 1.6f
             val cropWidth = (face.width * padding).coerceAtMost(imageWidth)
             val cropHeight = (face.height * padding).coerceAtMost(imageHeight)
-
             val left = (face.centerX - cropWidth / 2f).coerceIn(0f, kotlin.math.max(0f, imageWidth - cropWidth))
             val top = (face.centerY - cropHeight * 0.45f).coerceIn(0f, kotlin.math.max(0f, imageHeight - cropHeight))
 
@@ -518,153 +364,57 @@ class HomeViewModel(
     }
 
     fun saveCollage() {
-        val bitmap =
-            collageBitmap
-                ?: return
-
+        val bitmap = collageBitmap ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val uri =
-                    saveBitmapToGallery(bitmap)
-
-                savedCollageUri =
-                    uri
-
-                collageStatus =
-                    "Collage saved to gallery"
+                val uri = saveBitmapToGallery(bitmap)
+                savedCollageUri = uri
+                collageStatus = "Collage saved to gallery"
             } catch (exception: Exception) {
-                collageStatus =
-                    "Failed to save collage: ${exception.message}"
-
-                Log.e(
-                    "HomeViewModel",
-                    "COLLAGE SAVE ERROR",
-                    exception
-                )
+                collageStatus = "Failed to save collage: ${exception.message}"
+                Log.e("HomeViewModel", "COLLAGE SAVE ERROR", exception)
             }
         }
     }
 
-    fun getCollageShareUri(): Uri? {
-        return savedCollageUri
-    }
+    fun getCollageShareUri(): Uri? = savedCollageUri
 
-    private fun saveBitmapToGallery(
-        bitmap: Bitmap
-    ): Uri {
-        val resolver =
-            context.contentResolver
-
-        val fileName =
-            "iykyk_collage_${System.currentTimeMillis()}.png"
-
-        val values =
-            ContentValues().apply {
-                put(
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    fileName
-                )
-
-                put(
-                    MediaStore.Images.Media.MIME_TYPE,
-                    "image/png"
-                )
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(
-                        MediaStore.Images.Media.RELATIVE_PATH,
-                        Environment.DIRECTORY_PICTURES +
-                                "/iykyk"
-                    )
-
-                    put(
-                        MediaStore.Images.Media.IS_PENDING,
-                        1
-                    )
-                }
+    private fun saveBitmapToGallery(bitmap: Bitmap): Uri {
+        val resolver = context.contentResolver
+        val fileName = "iykyk_collage_${System.currentTimeMillis()}.png"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/iykyk")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
             }
+        }
 
-        val uri =
-            resolver.insert(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                values
-            )
-                ?: throw IllegalStateException(
-                    "Unable to create gallery item"
-                )
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: throw IllegalStateException("Unable to create gallery item")
 
         try {
             resolver.openOutputStream(uri).use { outputStream ->
-                if (outputStream == null) {
-                    throw IllegalStateException(
-                        "Unable to open gallery output"
-                    )
-                }
-
-                if (
-                    !bitmap.compress(
-                        Bitmap.CompressFormat.PNG,
-                        100,
-                        outputStream
-                    )
-                ) {
-                    throw IllegalStateException(
-                        "Unable to encode collage"
-                    )
-                }
+                if (outputStream == null) throw IllegalStateException("Unable to open gallery output")
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)) throw IllegalStateException("Unable to encode collage")
             }
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val completedValues =
-                    ContentValues().apply {
-                        put(
-                            MediaStore.Images.Media.IS_PENDING,
-                            0
-                        )
-                    }
-
-                resolver.update(
-                    uri,
-                    completedValues,
-                    null,
-                    null
-                )
+                val completedValues = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
+                resolver.update(uri, completedValues, null, null)
             }
-
             return uri
         } catch (exception: Exception) {
-            resolver.delete(
-                uri,
-                null,
-                null
-            )
-
+            resolver.delete(uri, null, null)
             throw exception
         }
     }
 
     override fun onCleared() {
-        videoThumbnailBitmap?.let {
-            if (!it.isRecycled) {
-                it.recycle()
-            }
-        }
-
-        collageBitmap?.let {
-            if (!it.isRecycled) {
-                it.recycle()
-            }
-        }
-
-        representativeBitmaps.forEach { bitmap ->
-            if (!bitmap.isRecycled) {
-                bitmap.recycle()
-            }
-        }
-
+        videoThumbnailBitmap?.let { if (!it.isRecycled) it.recycle() }
+        collageBitmap?.let { if (!it.isRecycled) it.recycle() }
+        representativeBitmaps.forEach { bitmap -> if (!bitmap.isRecycled) bitmap.recycle() }
         faceEmbedder.close()
         videoProcessor.close()
-
         super.onCleared()
     }
 }

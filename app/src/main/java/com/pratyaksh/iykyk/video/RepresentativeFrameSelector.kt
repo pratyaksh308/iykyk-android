@@ -47,17 +47,19 @@ class RepresentativeFrameSelector {
             return null
         }
 
+        val timestamps = segment.observations.map { it.timestampMs }
+        val loadedBitmaps = frameLoader.loadFrames(uri, timestamps)
+
         val initialCandidates = segment.observations.map { observation ->
-            var bitmap: Bitmap? = null
+            val bitmap = loadedBitmaps[observation.timestampMs]
             var rawSharpness = 0f
 
-            try {
-                bitmap = frameLoader.loadFrame(uri, observation.timestampMs)
-                if (bitmap != null) {
+            if (bitmap != null) {
+                try {
                     rawSharpness = calculateSharpness(bitmap, observation.face)
+                } catch (_: Exception) {
+                    rawSharpness = 0f
                 }
-            } catch (_: Exception) {
-                rawSharpness = 0f
             }
 
             val minMargin = calculateMinEdgeMargin(

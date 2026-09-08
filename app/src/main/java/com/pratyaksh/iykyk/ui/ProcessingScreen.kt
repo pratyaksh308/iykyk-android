@@ -1,6 +1,5 @@
 package com.pratyaksh.iykyk.ui
 
-import android.app.Activity
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -537,7 +536,6 @@ private fun ResultsStateView(
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Header
             item {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -597,7 +595,6 @@ private fun ResultsStateView(
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // Headline & Metric Pill
             item {
                 Column(
                     modifier = Modifier
@@ -671,7 +668,6 @@ private fun ResultsStateView(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Section Label
             item {
                 Text(
                     text = "THE PEOPLE IN YOUR VIDEO",
@@ -691,7 +687,6 @@ private fun ResultsStateView(
                 )
             }
 
-            // Person Cards List
             items(personResults) { person ->
                 PersonCardItem(
                     person = person,
@@ -701,7 +696,6 @@ private fun ResultsStateView(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Bottom Flow
             item {
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -714,7 +708,6 @@ private fun ResultsStateView(
                         },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Primary Action Button
                     val seeCollageInteraction = remember { MutableInteractionSource() }
                     val isSeeCollagePressed by seeCollageInteraction.collectIsPressedAsState()
                     val seeCollageScale by animateFloatAsState(
@@ -887,7 +880,6 @@ private fun PersonCardItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                // Avatar Thumbnail Box
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -923,8 +915,7 @@ private fun PersonCardItem(
                     }
                 }
 
-                // Name & Appearances Details
-                Column(
+                    Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Row(
@@ -1111,8 +1102,7 @@ private fun ProcessingCard(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Scanning Preview Container
-                Box(
+                   Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -1131,8 +1121,7 @@ private fun ProcessingCard(
                         VideoIllustration()
                     }
 
-                    // Dark Gradient Overlay
-                    Box(
+                                Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
@@ -1146,8 +1135,7 @@ private fun ProcessingCard(
                             )
                     )
 
-                    // Top Scanning Line Animation
-                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
                         val lineY = size.height * scanLineY
 
                         drawRect(
@@ -1163,8 +1151,7 @@ private fun ProcessingCard(
                         )
                     }
 
-                    // Top-Right Analyzing Badge
-                    Box(
+                                Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(top = 12.dp, end = 12.dp)
@@ -1214,8 +1201,7 @@ private fun ProcessingCard(
                         }
                     }
 
-                    // Simulated Face Detection Target Boxes
-                    FaceTargetBox(
+                                FaceTargetBox(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .offset(x = 30.dp, y = 80.dp)
@@ -1242,12 +1228,10 @@ private fun ProcessingCard(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Progress Details & Stage Headline
-                Column(
+                            Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Status Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1255,25 +1239,40 @@ private fun ProcessingCard(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .scale(pulseScale)
-                                    .alpha(pulseAlpha)
-                                    .clip(CircleShape)
-                                    .background(IykykTheme.colors.primaryContainer)
-                            )
-                            Text(
-                                text = "processing video",
-                                style = TextStyle(
-                                    fontFamily = Jakarta,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = IykykTheme.colors.mutedInk
+                            if (videoThumbnail != null && !videoThumbnail.isRecycled) {
+                                Image(
+                                    bitmap = videoThumbnail.asImageBitmap(),
+                                    contentDescription = "Processing video thumbnail",
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Crop
                                 )
-                            )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .scale(pulseScale)
+                                        .alpha(pulseAlpha)
+                                        .clip(CircleShape)
+                                        .background(IykykTheme.colors.primaryContainer)
+                                )
+                                Text(
+                                    text = "processing video",
+                                    style = TextStyle(
+                                        fontFamily = Jakarta,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = IykykTheme.colors.mutedInk
+                                    )
+                                )
+                            }
                         }
 
                         Row(
@@ -1301,8 +1300,7 @@ private fun ProcessingCard(
                         }
                     }
 
-                    // Progress Bar
-                    Box(
+                                Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
@@ -1342,8 +1340,7 @@ private fun ProcessingCard(
                         }
                     }
 
-                    // Stage Headline & Lock Subtitle
-                    Column(
+                                Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1436,41 +1433,6 @@ private fun FaceIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SparkleIconSmall() {
-    val coral = IykykTheme.colors.coral
-
-    Canvas(modifier = Modifier.size(13.dp)) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val path = Path()
-        val radiusOuter = minOf(size.width, size.height) / 2f
-        val radiusInner = radiusOuter / 4f
-
-        for (i in 0 until 8) {
-            val angle = Math.toRadians((i * 45).toDouble())
-            val radius = if (i % 2 == 0) radiusOuter else radiusInner
-
-            val point = Offset(
-                x = center.x + kotlin.math.cos(angle).toFloat() * radius,
-                y = center.y + kotlin.math.sin(angle).toFloat() * radius
-            )
-
-            if (i == 0) {
-                path.moveTo(point.x, point.y)
-            } else {
-                path.lineTo(point.x, point.y)
-            }
-        }
-
-        path.close()
-
-        drawPath(
-            path = path,
-            color = coral
-        )
-    }
-}
-
-@Composable
 private fun SparkleIconYellow() {
     val tertiaryFixed = IykykTheme.colors.tertiaryFixed
 
@@ -1534,25 +1496,6 @@ private fun StarIconSmall() {
         drawPath(
             path = path,
             color = Color.White
-        )
-    }
-}
-
-@Composable
-private fun ChevronRightIcon() {
-    val mutedInk = IykykTheme.colors.mutedInk
-
-    Canvas(modifier = Modifier.size(20.dp)) {
-        val path = Path().apply {
-            moveTo(size.width * 0.35f, size.height * 0.20f)
-            lineTo(size.width * 0.65f, size.height * 0.50f)
-            lineTo(size.width * 0.35f, size.height * 0.80f)
-        }
-
-        drawPath(
-            path = path,
-            color = mutedInk.copy(alpha = 0.6f),
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
         )
     }
 }
@@ -1873,15 +1816,6 @@ private fun DecorativeStar(
             color = color
         )
     }
-}
-
-private fun Color.toArgb(): Int {
-    return android.graphics.Color.argb(
-        (alpha * 255).toInt(),
-        (red * 255).toInt(),
-        (green * 255).toInt(),
-        (blue * 255).toInt()
-    )
 }
 
 @Preview(name = "Processing State - Light", showBackground = true, showSystemUi = true)

@@ -5,9 +5,15 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.Process
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -17,8 +23,21 @@ class VideoProcessor(
 ) {
     companion object {
         private const val TAG = "VideoProcessor"
-        private const val DEFAULT_INTERVAL_MS = 200L
+        private const val DEFAULT_INTERVAL_MS = 150L
         private const val FRAME_CHUNK_SIZE = 25
+    }
+
+    private val frameCache = java.util.concurrent.ConcurrentHashMap<Long, Bitmap>()
+
+    fun clearCache() {
+        val count = frameCache.size
+        frameCache.values.forEach { bitmap ->
+            if (!bitmap.isRecycled) {
+                bitmap.recycle()
+            }
+        }
+        frameCache.clear()
+        Log.d(TAG, "Cleared $count cached frames from RAM")
     }
 
     fun getVideoName(uri: Uri): String? {
@@ -62,7 +81,13 @@ class VideoProcessor(
         uri: Uri,
         intervalMs: Long = DEFAULT_INTERVAL_MS,
         onProgress: (Float) -> Unit = {}
-    ): List<FrameDetection> {
+    ): List<FrameDetection> = withContext(Dispatchers.Default) {
+        try {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_FOREGROUND)
+        } catch (_: Exception) {}
+
+        clearCache()
+
         require(intervalMs > 0) {
             "intervalMs must be greater than zero"
         }
@@ -140,7 +165,7 @@ class VideoProcessor(
             Log.d(TAG, "Total processing time: ${totalTimeMs}ms")
             Log.d(TAG, "=======================================")
 
-            return results
+            return@withContext results
         } finally {
             retriever.release()
         }
@@ -200,45 +225,48 @@ class VideoProcessor(
                 System.nanoTime() - decodeStartTime
 
             try {
+                data class SampledTask(val timestampMs: Long, val frame: Bitmap)
+                val sampledTasks = mutableListOf<SampledTask>()
+
                 frames.forEachIndexed { index, frame ->
-                    val absoluteFrameIndex =
-                        chunkStartFrame + index
+                    val absoluteFrameIndex = chunkStartFrame + index
+                    if (absoluteFrameIndex % sampleEveryFrames == 0) {
+                        val timestampMs = (
+                            absoluteFrameIndex.toDouble() *
+                                1000.0 /
+                                frameRate
+                        ).roundToInt().toLong()
+                        sampledTasks.add(SampledTask(timestampMs, frame))
+                    }
+                }
 
-                    if (
-                        absoluteFrameIndex % sampleEveryFrames != 0
-                    ) {
-                        return@forEachIndexed
+                if (sampledTasks.isNotEmpty()) {
+                    val batchResults = coroutineScope {
+                        sampledTasks.map { task ->
+                            async(Dispatchers.Default) {
+                                val detectionStartTime = System.nanoTime()
+                                val processedFrame = scaleBitmapIfNeeded(task.frame)
+
+                                val cacheCopy = if (processedFrame == task.frame) {
+                                    task.frame.copy(task.frame.config ?: Bitmap.Config.ARGB_8888, false)
+                                } else {
+                                    processedFrame
+                                }
+                                frameCache[task.timestampMs] = cacheCopy
+
+                                val faces = faceDetector.detectFaces(processedFrame)
+                                val durationNs = System.nanoTime() - detectionStartTime
+                                FrameDetection(task.timestampMs, faces) to durationNs
+                            }
+                        }.awaitAll()
                     }
 
-                    sampledFrameCount++
-                    onProgress(sampledFrameCount.toFloat() / totalSampledEstimate.toFloat())
-
-                    val timestampMs =
-                        (
-                                absoluteFrameIndex.toDouble() *
-                                        1000.0 /
-                                        frameRate
-                                ).roundToInt().toLong()
-
-                    val detectionStartTime =
-                        System.nanoTime()
-
-                    val processedFrame = scaleBitmapIfNeeded(frame)
-                    val faces =
-                        faceDetector.detectFaces(processedFrame)
-                    if (processedFrame != frame && !processedFrame.isRecycled) {
-                        processedFrame.recycle()
+                    for ((detection, durationNs) in batchResults) {
+                        sampledFrameCount++
+                        totalDetectionTimeNs += durationNs
+                        detections.add(detection)
+                        onProgress(sampledFrameCount.toFloat() / totalSampledEstimate.toFloat())
                     }
-
-                    totalDetectionTimeNs +=
-                        System.nanoTime() - detectionStartTime
-
-                    detections.add(
-                        FrameDetection(
-                            timestampMs = timestampMs,
-                            faces = faces
-                        )
-                    )
                 }
             } finally {
                 frames.forEach { bitmap ->
@@ -280,45 +308,61 @@ class VideoProcessor(
             var timestampMs = 0L
             val totalSteps = max(1, (durationMs / intervalMs).toInt())
 
+            val batchSize = 8
             while (timestampMs < durationMs) {
-                val decodeStartTime = System.nanoTime()
-
-                val frame = retriever.getFrameAtTime(
-                    timestampMs * 1000,
-                    MediaMetadataRetriever.OPTION_CLOSEST
-                )
-
-                totalDecodeTimeNs += System.nanoTime() - decodeStartTime
-
-                if (frame != null) {
-                    try {
-                        sampledFrameCount++
-                        onProgress(sampledFrameCount.toFloat() / totalSteps.toFloat())
-
-                        val detectionStartTime = System.nanoTime()
-
-                        val processedFrame = scaleBitmapIfNeeded(frame)
-                        val faces = faceDetector.detectFaces(processedFrame)
-                        if (processedFrame != frame && !processedFrame.isRecycled) {
-                            processedFrame.recycle()
-                        }
-
-                        totalDetectionTimeNs += System.nanoTime() - detectionStartTime
-
-                        detections.add(
-                            FrameDetection(
-                                timestampMs = timestampMs,
-                                faces = faces
-                            )
-                        )
-                    } finally {
-                        if (!frame.isRecycled) {
-                            frame.recycle()
-                        }
-                    }
+                val batchTimestamps = mutableListOf<Long>()
+                while (batchTimestamps.size < batchSize && timestampMs < durationMs) {
+                    batchTimestamps.add(timestampMs)
+                    timestampMs += intervalMs
                 }
 
-                timestampMs += intervalMs
+                val decodeStartTime = System.nanoTime()
+                val extractedFrames = mutableListOf<Pair<Long, Bitmap>>()
+                for (ts in batchTimestamps) {
+                    val frame = retriever.getFrameAtTime(
+                        ts * 1000,
+                        MediaMetadataRetriever.OPTION_CLOSEST
+                    )
+                    if (frame != null) {
+                        extractedFrames.add(ts to frame)
+                    }
+                }
+                totalDecodeTimeNs += System.nanoTime() - decodeStartTime
+
+                if (extractedFrames.isNotEmpty()) {
+                    val batchResults = coroutineScope {
+                        extractedFrames.map { (ts, frame) ->
+                            async(Dispatchers.Default) {
+                                try {
+                                    val detectionStartTime = System.nanoTime()
+                                    val processedFrame = scaleBitmapIfNeeded(frame)
+
+                                    val cacheCopy = if (processedFrame == frame) {
+                                        frame.copy(frame.config ?: Bitmap.Config.ARGB_8888, false)
+                                    } else {
+                                        processedFrame
+                                    }
+                                    frameCache[ts] = cacheCopy
+
+                                    val faces = faceDetector.detectFaces(processedFrame)
+                                    val durationNs = System.nanoTime() - detectionStartTime
+                                    FrameDetection(ts, faces) to durationNs
+                                } finally {
+                                    if (!frame.isRecycled) {
+                                        frame.recycle()
+                                    }
+                                }
+                            }
+                        }.awaitAll()
+                    }
+
+                    for ((detection, durationNs) in batchResults) {
+                        sampledFrameCount++
+                        totalDetectionTimeNs += durationNs
+                        detections.add(detection)
+                        onProgress(sampledFrameCount.toFloat() / totalSteps.toFloat())
+                    }
+                }
             }
 
             onProgress(1f)
@@ -422,10 +466,70 @@ class VideoProcessor(
             )
     }
 
+    fun batchExtractFrames(
+        uri: Uri,
+        timestampsMs: List<Long>
+    ): Map<Long, Bitmap> {
+        if (timestampsMs.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<Long, Bitmap>()
+        val missingTimestamps = mutableListOf<Long>()
+
+        for (ts in timestampsMs.distinct()) {
+            val cached = extractFrame(uri, ts)
+            if (cached != null) {
+                result[ts] = cached
+            } else {
+                missingTimestamps.add(ts)
+            }
+        }
+
+        if (missingTimestamps.isEmpty()) return result
+
+        val retriever = MediaMetadataRetriever()
+        try {
+            setDataSource(retriever, uri)
+            for (ts in missingTimestamps) {
+                val frame = retriever.getFrameAtTime(
+                    ts * 1000,
+                    MediaMetadataRetriever.OPTION_CLOSEST
+                )
+                if (frame != null) {
+                    val scaled = scaleBitmapIfNeeded(frame)
+                    result[ts] = scaled
+                    val cacheCopy = if (scaled == frame) {
+                        frame.copy(frame.config ?: Bitmap.Config.ARGB_8888, false)
+                    } else {
+                        scaled
+                    }
+                    frameCache[ts] = cacheCopy
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "batchExtractFrames failed", e)
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {}
+        }
+
+        return result
+    }
+
     fun extractFrame(
         uri: Uri,
         timestampMs: Long
     ): Bitmap? {
+        val cached = frameCache[timestampMs]
+        if (cached != null && !cached.isRecycled) {
+            return cached.copy(cached.config ?: Bitmap.Config.ARGB_8888, false)
+        }
+
+        val nearest = frameCache.entries.minByOrNull { kotlin.math.abs(it.key - timestampMs) }
+        if (nearest != null && kotlin.math.abs(nearest.key - timestampMs) <= 50L && !nearest.value.isRecycled) {
+            return nearest.value.copy(nearest.value.config ?: Bitmap.Config.ARGB_8888, false)
+        }
+
         val retriever = MediaMetadataRetriever()
 
         return try {
@@ -434,10 +538,20 @@ class VideoProcessor(
                 uri
             )
 
-            retriever.getFrameAtTime(
+            val frame = retriever.getFrameAtTime(
                 timestampMs * 1000,
                 MediaMetadataRetriever.OPTION_CLOSEST
             )
+            val scaled = frame?.let { scaleBitmapIfNeeded(it) }
+            if (scaled != null) {
+                val cacheCopy = if (scaled == frame) {
+                    frame.copy(frame.config ?: Bitmap.Config.ARGB_8888, false)
+                } else {
+                    scaled
+                }
+                frameCache[timestampMs] = cacheCopy
+            }
+            scaled
         } catch (e: Exception) {
             Log.e(TAG, "extractFrame failed for timestamp $timestampMs", e)
             null
@@ -449,10 +563,11 @@ class VideoProcessor(
     }
 
     fun close() {
+        clearCache()
         faceDetector.close()
     }
 
-    private fun scaleBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int = 1080): Bitmap {
+    private fun scaleBitmapIfNeeded(bitmap: Bitmap, maxDimension: Int = 640): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
         if (width <= maxDimension && height <= maxDimension) {

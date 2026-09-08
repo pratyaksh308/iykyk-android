@@ -1,11 +1,11 @@
 package com.pratyaksh.iykyk.ui
 
-import android.app.Activity
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -97,7 +97,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
     }
 
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         homeViewModel?.onVideoSelected(uri)
     }
@@ -127,8 +127,16 @@ fun HomeScreen(contentPadding: PaddingValues) {
         videoInfo = videoInfo,
         videoDurationText = videoDurationText,
         thumbnailBitmap = thumbnailBitmap,
-        onPickVideo = { videoPickerLauncher.launch("video/*") },
-        onChangeVideo = { videoPickerLauncher.launch("video/*") },
+        onPickVideo = {
+            videoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+            )
+        },
+        onChangeVideo = {
+            videoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+            )
+        },
         onMakeCollage = { homeViewModel?.runSegmentationTest() }
     )
 }
@@ -1451,15 +1459,6 @@ private fun SparkleIcon() {
             color = amber
         )
     }
-}
-
-private fun Color.toArgb(): Int {
-    return android.graphics.Color.argb(
-        (alpha * 255).toInt(),
-        (red * 255).toInt(),
-        (green * 255).toInt(),
-        (blue * 255).toInt()
-    )
 }
 
 @Preview(name = "Empty State - Light", showBackground = true, showSystemUi = true)

@@ -8,9 +8,7 @@ import com.pratyaksh.iykyk.video.AppearanceSegmenter
 import com.pratyaksh.iykyk.video.CollageGenerator
 import com.pratyaksh.iykyk.video.FaceDetector
 import com.pratyaksh.iykyk.video.FaceEmbedder
-import com.pratyaksh.iykyk.video.FaceEmbeddingTester
 import com.pratyaksh.iykyk.video.IdentityGrouper
-import com.pratyaksh.iykyk.video.IdentityProfileCache
 import com.pratyaksh.iykyk.video.RepresentativeFrameLoader
 import com.pratyaksh.iykyk.video.RepresentativeFrameSelector
 import com.pratyaksh.iykyk.video.VideoProcessor
@@ -41,28 +39,16 @@ class HomeViewModelFactory(
             val faceEmbedder =
                 FaceEmbedder(context)
 
-            val faceEmbeddingTester =
-                FaceEmbeddingTester(
-                    videoProcessor = videoProcessor,
-                    faceEmbedder = faceEmbedder
-                )
-
             val appearanceSegmenter =
                 AppearanceSegmenter(
                     videoProcessor = videoProcessor,
                     faceEmbedder = faceEmbedder
                 )
 
-            val identityProfileCache =
-                IdentityProfileCache(
-                    context.applicationContext
-                )
-
             val identityGrouper =
                 IdentityGrouper(
                     videoProcessor = videoProcessor,
-                    faceEmbedder = faceEmbedder,
-                    profileCache = identityProfileCache
+                    faceEmbedder = faceEmbedder
                 )
 
             val representativeFrameSelector =
@@ -78,7 +64,6 @@ class HomeViewModelFactory(
 
             return HomeViewModel(
                 videoProcessor = videoProcessor,
-                faceEmbeddingTester = faceEmbeddingTester,
                 faceEmbedder = faceEmbedder,
                 appearanceSegmenter = appearanceSegmenter,
                 identityGrouper = identityGrouper,

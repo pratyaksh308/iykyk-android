@@ -10,10 +10,4 @@ data class AppearanceSegment(
     val startTimestampMs: Long,
     val endTimestampMs: Long,
     val observations: List<FaceObservation>
-) {
-    val durationMs: Long
-        get() = endTimestampMs - startTimestampMs
-
-    val observationCount: Int
-        get() = observations.size
-}
+)

@@ -6,6 +6,16 @@ import android.net.Uri
 class RepresentativeFrameLoader(
     private val videoProcessor: VideoProcessor
 ) {
+    fun loadFrames(
+        uri: Uri,
+        timestampsMs: List<Long>
+    ): Map<Long, Bitmap> {
+        return videoProcessor.batchExtractFrames(
+            uri = uri,
+            timestampsMs = timestampsMs
+        )
+    }
+
     fun loadFrame(
         uri: Uri,
         timestampMs: Long
@@ -20,11 +30,11 @@ class RepresentativeFrameLoader(
         uri: Uri,
         representativeFrames: List<RepresentativeFrame>
     ): List<Bitmap> {
-        return representativeFrames.mapNotNull { representative ->
-            videoProcessor.extractFrame(
-                uri = uri,
-                timestampMs = representative.timestampMs
-            )
-        }
+        val timestamps = representativeFrames.map { it.timestampMs }
+        val frameMap = videoProcessor.batchExtractFrames(
+            uri = uri,
+            timestampsMs = timestamps
+        )
+        return representativeFrames.mapNotNull { frameMap[it.timestampMs] }
     }
 }
