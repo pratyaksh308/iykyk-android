@@ -15,12 +15,12 @@
 
 ## 📋 Deliverables & Submission Summary
 
-| Deliverable | Location / Access Link |
-| :--- | :--- |
-| **Git Repository** | [Current Repository Root](./) |
+| Deliverable | Location / Access Link                                                                                             |
+| :--- |:-------------------------------------------------------------------------------------------------------------------|
+| **Git Repository** | [Current Repository Root](./)                                                                                      |
 | **Demo Video (Google Drive)** | [Google Drive Demo Video Link](https://drive.google.com/file/d/1olts1aXGdezV9ReeSGQ6Xt1eTPga80-Q/view?usp=sharing) |
-| **Debug APK** | `app/build/outputs/apk/debug/app-debug.apk` |
-| **Target Platform** | Android 8.0+ (`minSdk 26`, `compileSdk 37`, `targetSdk 37`) |
+| **Debug APK** | [APK Release Link](https://github.com/pratyaksh308/iykyk-android/releases)             |
+| **Target Platform** | Android 8.0+ (`minSdk 26`, `compileSdk 37`, `targetSdk 37`)                                                        |
 
 ---
 
